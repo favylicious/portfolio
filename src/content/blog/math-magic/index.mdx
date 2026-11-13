@@ -12,7 +12,7 @@ import AddDemo from "./components/add-demo/index.astro";
 import FibDemo from "./components/fibonacci-demo/index.astro";
 
 For me, one of the killer features that makes TypeScript alluring is its structural type system.
-Other languages like Java, Flutter, and Go opt for a nominal type system which brings about its many benefits,
+Other languages like Java, C#, and Dart (the language behind Flutter) opt for a nominal type system which brings about its many benefits,
 but there some things that are simply **impossible** in other languages whose names do not begin with _'Type'_ and end with _'Script'_.
 I'll show you how you can perform arithmetic with types in the most literal of senses. This will be an exciting read!
 
@@ -21,9 +21,9 @@ I'll show you how you can perform arithmetic with types in the most literal of s
 So obviously, TypeScript has an arithmetic system:
 
 ```ts
-const add = (a: number, b: number) {
+const add = (a: number, b: number) => {
     return a + b;
-}
+};
 
 add(1, 2) // 3
 ```
@@ -105,10 +105,12 @@ So in the third example, we end up with the `number` type. But we just learnt th
 a type, so isn't it intuitive for TypeScript to also assign `3` as the type?
 On paper, it does match the aforementioned criteria...
 
-At first glance, the difference here isn't easily noticeable. But there's something about TypeScript's compiler to take note of: types are only
-evaluated at _**compile-time**_. An arithmetic operation (in this case, addition) is a _**runtime**_ operation.
+At first glance, the difference here isn't easily noticeable. But there's something about TypeScript's compiler to take note of: it doesn't do
+_**arithmetic on types**_. The result of an arithmetic operation (in this case, addition) on two numbers is always typed as plain `number`,
+no matter which literals go in.
 
-What this means is that TypeScript actually _has no idea_ what `1 + 2` resolves to at compile time! Therefore, it just infers that the type is of `number`.
+It's not that the compiler _can't_ work out that `1 + 2` is `3` - it actually does exactly that for enum members like `enum E { A = 1 + 2 }`.
+TypeScript simply doesn't carry literal types through arithmetic in regular code. Therefore, it just infers that the type is of `number`.
 
 <Alert type="info" title="Applying set theory">
 
@@ -135,12 +137,13 @@ we try to assert `10` as `1`, and it fails because of this reason.
 ## Tuples
 
 Now that we've gotten the basics out of the way, an essential factor of type manipulation is **tuples**.
-Tuples are arrays with fixed lengths and determined values, and these guys are extremely powerful in constructing complex types.
+Tuples are arrays with a fixed length and a known type at each position, and these guys are extremely powerful in constructing complex types.
 
 <Alert type="warning" title="Tuples aren't 'real'...?">
-	There isn't actually a true implementation of a fixed-length array in JavaScript. Rather, TypeScript raises
-	type errors if we try to mutate it in any way, giving it the illusion of a tuple. Under the hood, the array
-	is still mutable!
+	There isn't actually a true implementation of a fixed-length array in JavaScript. A tuple is a regular array
+	whose length and element types TypeScript keeps track of. Even then, only a `readonly` tuple raises type errors
+	if we try to mutate it - a plain tuple type still allows things like `push`. And under the hood, the array is
+	always mutable!
 </Alert>
 
 Here are the ways to create a tuple, and a definition of an array:
@@ -156,12 +159,13 @@ const array: number[] = [1, 2, 3];
 //	  ^?
 ```
 
-We either use `as const` or assert the value as `[1, 2, 3]` to **really** convince TypeScript that what we declared _is_ in fact a tuple.
-This means that its type _and_ value are now the same: `[1, 2, 3]`.
+We either use `as const` or annotate the variable as `[1, 2, 3]` to **really** convince TypeScript that what we declared _is_ in fact a tuple.
+This means that its type now mirrors its value: `[1, 2, 3]`. The difference between the two is that `as const` also makes the tuple
+`readonly`, while the annotation gives a regular, mutable tuple.
 
 Without it, TypeScript will loosely infer `number[]`, like on the last line.
 
-We also can't modify tuples in any form, and some methods are even omitted by TypeScript:
+A `readonly` tuple (like one made with `as const`) can't be modified at all, and its mutating methods are even omitted by TypeScript:
 
 ```ts twoslash
 const tuple = [1, 2, 3] as const;
@@ -177,7 +181,7 @@ tuple.push(10);
 
 Okay, so tuples seem pretty rigid. Why are they useful anyway?
 
-Their magic comes from the `length` property. It is `readonly`, so it has a special feature:
+Their magic comes from the `length` property. Because a tuple's number of elements is fixed, it has a special feature:
 
 ```ts twoslash
 const tuple = [1, 2, 3] as const;
@@ -186,8 +190,9 @@ tuple.length;
 //      ^?
 ```
 
-Remember the `const` examples from earlier? Just like in `const` definitions, the values in tuples are determinate,
-so TypeScript can safely assume the length of the tuple - which in this case is typed as `3`.
+Remember the `const` examples from earlier? Just like a `const` keeps its literal type, a tuple keeps its exact length: TypeScript knows
+how many elements it has, so the length is typed as the literal `3`. This holds even when the elements themselves aren't literals -
+`[string, number]` has a length of `2`.
 Compare that to a regular array, where we get `number` instead!
 
 **_How cool is that??_** This opens up a whole new world of possibilities in the type world.
@@ -227,7 +232,7 @@ For instance, to find the factorial of a number, we can use this function:
 ```ts twoslash
 function factorial(n: number): number {
 	// base case
-	if (n === 1 || n === 0) return n;
+	if (n === 1 || n === 0) return 1;
 
 	// recursion case
 	return n * factorial(n - 1);
@@ -299,11 +304,11 @@ Next, let's make a way to convert numbers to tuples. Here's the concept:
 
 With these points in mind, we'll create a type that does this, step-by-step:
 
-Let's create a type called `MapToTuple`, which takes in a number:
+Let's create a type called `ToTuple`, which takes in a number:
 
 ```ts twoslash
 // @noErrors
-type MapToTuple<T extends number> = ...
+type ToTuple<T extends number> = ...
 ```
 
 It's going to be a recursive function, so want to create our base case and our accumulator -
@@ -312,7 +317,7 @@ we'll store that as 'state' via default generic values:
 ```ts twoslash
 // @noErrors
 // 0 is an arbitrary value
-type MapToTuple<T extends number, Acc extends 0[] = []> = ...
+type ToTuple<T extends number, Acc extends 0[] = []> = ...
 ```
 
 The idea is to increase `Acc`, until its length matches `T`.
@@ -322,15 +327,15 @@ Next, create the recursion logic:
 ```ts twoslash
 type Length<T extends any[]> = T["length"];
 // ---cut---
-type MapToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
+type ToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
 	? Acc
-	: MapToTuple<T, [...Acc, 0]>;
+	: ToTuple<T, [...Acc, 0]>;
 ```
 
 Okay. Let's pause here. What exactly are we doing with `extends`?
 
 Every time we compile the type, we check if the length of `Acc` is the same as `T`. If it is, we return `Acc`, our tuple type. If it's not,
-we return `MapToTuple` again, but we do 2 things:
+we return `ToTuple` again, but we do 2 things:
 
 1. Pass `T` as the same argument. This shouldn't change as it's our desired number.
 2. We use the spread operator `...` on `Acc` to get its items, then append an extra value. This new value goes into the `Acc` slot.
@@ -347,18 +352,18 @@ we return `MapToTuple` again, but we do 2 things:
 	```
 </Alert>
 
-If we input a number into `MapToTuple`, this is what we get:
+If we input a number into `ToTuple`, this is what we get:
 
 ```ts twoslash
 type Length<T extends any[]> = T["length"];
-type MapToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
+type ToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
 	? Acc
-	: MapToTuple<T, [...Acc, 0]>;
+	: ToTuple<T, [...Acc, 0]>;
 // ---cut---
-type Hello = MapToTuple<4>;
+type Hello = ToTuple<4>;
 //   ^?
 
-type World = MapToTuple<8>;
+type World = ToTuple<8>;
 //	 ^?
 ```
 
@@ -369,11 +374,11 @@ add into a tuple, then concatenate them to get the total length:
 
 ```ts twoslash
 type Length<T extends any[]> = T["length"];
-type MapToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
+type ToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
 	? Acc
-	: MapToTuple<T, [...Acc, 0]>;
+	: ToTuple<T, [...Acc, 0]>;
 // ---cut---
-type Add<A extends number, B extends number> = Length<[...MapToTuple<A>, ...MapToTuple<B>]>;
+type Add<A extends number, B extends number> = Length<[...ToTuple<A>, ...ToTuple<B>]> & number;
 
 type Three = Add<1, 2>;
 //	 ^?
@@ -381,6 +386,9 @@ type Three = Add<1, 2>;
 type Ten = Add<4, 6>;
 //	 ^?
 ```
+
+The `& number` at the end doesn't change the result - `3 & number` is just `3`. It reassures TypeScript that `Add` always produces a
+number, which we'll need later when we feed its result back into another type that expects one.
 
 And we've done it! We've successfully implemented addition in TypeScript using only types! If this is still confusing to you,
 here's a summary of everything we've done so far:
@@ -427,10 +435,10 @@ let's add `1000` to `1000`:
 
 ```ts twoslash
 type Length<T extends any[]> = T["length"];
-type MapToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
+type ToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
 	? Acc
-	: MapToTuple<T, [...Acc, 0]>;
-type Add<A extends number, B extends number> = Length<[...MapToTuple<A>, ...MapToTuple<B>]>;
+	: ToTuple<T, [...Acc, 0]>;
+type Add<A extends number, B extends number> = Length<[...ToTuple<A>, ...ToTuple<B>]> & number;
 // ---cut---
 // @errors: 2589
 type Result = Add<1000, 1000>;
@@ -448,7 +456,25 @@ I hope you've enjoyed learning about the countless fascinating things about Type
 If you would like to see more challenges like these, check out the [type-challenges](https://github.com/type-challenges/type-challenges) repo.
 
 <Alert type="info" title="Subtraction?">
-	While addition may be quite simple, **subtraction**, on the other hand, is a whole other ball game. Check
-	out this [solution](https://github.com/type-challenges/type-challenges/issues/35324). Who knew it could be
-	so difficult?
+
+What about **subtraction**? With the same tuple trick, it's surprisingly short: map both numbers to tuples, then `infer` whatever is
+left over once `B`'s elements are taken off `A`'s.
+
+```ts twoslash
+type Length<T extends any[]> = T["length"];
+type ToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
+	? Acc
+	: ToTuple<T, [...Acc, 0]>;
+// ---cut---
+type Subtract<A extends number, B extends number> = ToTuple<A> extends [...ToTuple<B>, ...infer Rest]
+	? Rest["length"]
+	: never;
+
+type Six = Subtract<10, 4>;
+//   ^?
+```
+
+It does fall apart for negative results (`Subtract<4, 10>` is `never`), and it shares the same recursion limit. Handling those properly
+is where things get difficult - check out this [solution](https://github.com/type-challenges/type-challenges/issues/35324) for a taste.
+
 </Alert>

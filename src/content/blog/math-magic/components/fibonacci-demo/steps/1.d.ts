@@ -1,9 +1,9 @@
 type Length<T extends any[]> = T["length"];
-type MapToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
+type ToTuple<T extends number, Acc extends 0[] = []> = Length<Acc> extends T
 	? Acc
-	: MapToTuple<T, [...Acc, 0]>;
+	: ToTuple<T, [...Acc, 0]>;
 type Add<A extends number, B extends number> = 
-	Length<[...MapToTuple<A>, ...MapToTuple<B>]>;
+	Length<[...ToTuple<A>, ...ToTuple<B>]> & number;
 // ---cut---
 type Fibonacci<
 	N extends number,
