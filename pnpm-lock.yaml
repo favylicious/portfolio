@@ -112,8 +112,8 @@ importers:
         specifier: ^22.13.1
         version: 22.13.1
       tailwindcss:
-        specifier: 4.0.0
-        version: 4.0.0
+        specifier: ^4.3.3
+        version: 4.3.3
       twoslash-cdn:
         specifier: ^0.2.12
         version: 0.2.12(typescript@5.7.2)
@@ -3346,9 +3346,6 @@ packages:
 
   tailwind-merge@2.6.0:
     resolution: {integrity: sha512-P+Vu1qXfzediirmHOC3xKGAYeZtPcV9g76X+xg2FD4tYgR71ewMA35Y3sCz3zhiN/dwefRpJX0yBcgwi1fXNQA==}
-
-  tailwindcss@4.0.0:
-    resolution: {integrity: sha512-ULRPI3A+e39T7pSaf1xoi58AqqJxVCLg8F/uM5A3FadUbnyDTgltVnXJvdkTjwCOGA6NazqHVcwPJC5h2vRYVQ==}
 
   tailwindcss@4.3.3:
     resolution: {integrity: sha512-gOhV3P7ufE62QDGg1zVaTgCR+EtPv92k2nIhVcVKcLmxT1sUBsQGhnZj175j+MqRt4zLF7ic+sCYjfhxMxj7YQ==}
@@ -7616,8 +7613,6 @@ snapshots:
       sax: 1.6.1
 
   tailwind-merge@2.6.0: {}
-
-  tailwindcss@4.0.0: {}
 
   tailwindcss@4.3.3: {}
 

@@ -1,5 +1,5 @@
 ---
-import RelatedProjects from "@content/components/RelatedProjects.astro";
+import Related from "@content/components/Related.astro";
 import Tags from "@content/components/Tags.astro";
 import ContentLayout from "@layouts/ContentLayout.astro";
 import { getEntries, render } from "astro:content";
@@ -35,5 +35,5 @@ const { title, description, draft, pubDate, githubUrl, related, url } = project.
     </div>
     <Tags data={tags} />
     <Content />
-    {related && <RelatedProjects slot="related-projects" id={project.id} />}
+    <Related slot="related" related={related} />
 </ContentLayout>

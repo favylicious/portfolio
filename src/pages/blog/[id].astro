@@ -1,6 +1,7 @@
 ---
 import { render } from "astro:content";
 
+import Related from "@content/components/Related.astro";
 import Tags from "@content/components/Tags.astro";
 import ContentLayout from "@layouts/ContentLayout.astro";
 import { getEntries } from "astro:content";
@@ -40,4 +41,5 @@ const { title, description, draft, pubDate, related } = post.data;
     </div>
     <Tags data={tags} />
     <Content />
+    <Related slot="related" related={related} />
 </ContentLayout>

@@ -15,7 +15,7 @@ const { data } = Astro.props;
 	{
 		data.map(({ date, description, title }) => (
 			<div
-				class={`ml-4 h-64 flex space-x-8 border-l-4 border-gray-800 relative before:absolute before:content-['${date}'] before:-left-8 before:top-0`}
+				class="ml-4 h-64 flex space-x-8 border-l-4 border-gray-800 relative"
 			>
 				<div class="p-1 bg-primary font-display text-center grid place-items-center absolute -left-[1.35rem] top-0 w-fit leading-3 aspect-square ring-2 ring-primary rounded-full">
 					{date}

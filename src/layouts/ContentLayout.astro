@@ -30,8 +30,7 @@ const { title, headings } = Astro.props;
 		<slot />
 		<Toc headings={headings} />
 	</article>
-	<slot name="related-projects" />
-	<slot name="related-blogs" />
+	<slot name="related" />
 </BaseLayout>
 
 <style is:global>

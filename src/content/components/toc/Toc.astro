@@ -17,15 +17,23 @@ const buildToc = (headings: MarkdownHeading[]) => {
 
 	for (const h of headings) {
 		if (h.depth === 1) continue;
-		const heading = { ...h, subheadings: [] };
-		parentHeadings.set(heading.depth, heading);
+		const heading: Heading = { ...h, subheadings: [] };
 
-		if (heading.depth === 2) {
-			toc.push(heading);
-			continue;
+		// a new heading closes any deeper sections that came before it
+		for (const depth of [...parentHeadings.keys()]) {
+			if (depth >= heading.depth) parentHeadings.delete(depth);
 		}
 
-		parentHeadings.get(heading.depth - 1)!.subheadings.push(heading);
+		// attach to the nearest shallower heading, tolerating skipped levels (h2 -> h4)
+		let parent: Heading | undefined;
+		for (let depth = heading.depth - 1; depth >= 2 && !parent; depth--) {
+			parent = parentHeadings.get(depth);
+		}
+
+		if (parent) parent.subheadings.push(heading);
+		else toc.push(heading);
+
+		parentHeadings.set(heading.depth, heading);
 	}
 
 	return toc;
@@ -73,18 +81,25 @@ const toc = buildToc(headings);
 	}
 </style>
 
-<script is:inline>
-	// mark active toc links on every page load containing blog/project
+<script>
+	let observer: IntersectionObserver | undefined;
+
+	// mark active toc links on every page load containing blog/project.
+	// bundled script: runs once, so this listener is only registered once.
 	document.addEventListener("astro:page-load", () => {
+		observer?.disconnect();
+		observer = undefined;
+
 		const sections = document.querySelectorAll("article section");
+		if (sections.length === 0) return;
 
-		const observer = new IntersectionObserver(s => {
+		observer = new IntersectionObserver(s => {
 			for (const section of s) {
-				const heading = section.target.querySelector("h2, h3");
-				const id = heading.getAttribute("id");
-				const link = document.querySelector(`article #toc li a[href="#${id}"]`);
+				const id = section.target.querySelector("h2, h3")?.getAttribute("id");
+				if (!id) continue;
 
-				if (!link) return;
+				const link = document.querySelector(`article #toc li a[href="#${CSS.escape(id)}"]`);
+				if (!link) continue;
 
 				if (section.intersectionRatio > 0) {
 					link.classList.replace("text-gray-600", "text-indigo-400");
