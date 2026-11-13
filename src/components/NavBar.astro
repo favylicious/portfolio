@@ -1,6 +1,8 @@
 ---
 import NavLink from "./NavLink.astro";
 import Logo from "@assets/logo.svg";
+
+const mobileLink = "place-items-start text-4xl py-3";
 ---
 
 <header
@@ -38,16 +40,16 @@ import Logo from "@assets/logo.svg";
 
     <nav
         class:list={[
-            "nav-links col-span-3 min-h-screen p-24 flex flex-col space-y-4 bg-secondary fixed inset-x-0 md:hidden",
+            "nav-links col-span-3 min-h-screen px-4 sm:px-16 pt-28 flex flex-col items-start gap-4 bg-secondary fixed inset-x-0 md:hidden",
             // fade + slight drop in; visibility keeps the closed menu out of tab order and clicks
             "invisible opacity-0 -translate-y-2",
             "peer-has-checked:visible peer-has-checked:opacity-100 peer-has-checked:translate-y-0",
             "transition-[opacity,translate,visibility] duration-300 ease-out motion-reduce:transition-none",
         ]}
     >
-        <NavLink href="/#about">about me.</NavLink>
-        <NavLink href="/stuff">stuff.</NavLink>
-        <NavLink href="/contact">contact.</NavLink>
+        <NavLink href="/#about" class={mobileLink}>about me.</NavLink>
+        <NavLink href="/stuff" class={mobileLink}>stuff.</NavLink>
+        <NavLink href="/contact" class={mobileLink}>contact.</NavLink>
     </nav>
     <div class="backdrop col-span-full"></div>
 </header>

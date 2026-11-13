@@ -1,15 +1,19 @@
 ---
+import { cn } from "@util/cn";
+
 interface Props {
 	href: string;
+	class?: string;
 }
 
-const { href } = Astro.props;
+const { href, class: className } = Astro.props;
 ---
 
 <a
-	class:list={[
+	class={cn(
 		"group md:min-w-24 py-2 px-4 grid place-items-center text-primary text-xl font-body font-medium tracking-wide focus-within:text-secondary hover:text-secondary rounded-xs overflow-hidden relative transition-colors",
-	]}
+		className,
+	)}
 	href={href}
 >
 	<span
