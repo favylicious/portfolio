@@ -40,6 +40,38 @@ const linkIcons = [
 		<div class="bg-gray-800 grow h-0.5"></div>
 	</div>
 	<p class="group mt-12 col-span-5 text-center place-self-center">
-		Built with <i class="ph-fill ph-heart group-hover:text-pink-400 transition-colors">love</i> by favian
+		Built with <button
+			type="button"
+			data-heart
+			aria-label="love"
+			class:list={[
+				"inline-block align-middle cursor-pointer rounded-xs focus-visible:ring-3",
+				"group-hover:text-pink-400 data-beat:text-pink-400 transition-colors",
+				"data-beat:motion-safe:animate-heartbeat",
+			]}
+		><i aria-hidden="true" class="ph-fill ph-heart">love</i></button> by favian
 	</p>
 </footer>
+
+<script>
+	// Delegated so it keeps working after ClientRouter swaps the footer (this script runs once).
+	document.addEventListener("click", e => {
+		const heart = (e.target as Element).closest<HTMLElement>("[data-heart]");
+		if (!heart) return;
+
+		// restart the animation if it's clicked mid-beat
+		delete heart.dataset.beat;
+		void heart.offsetWidth;
+		heart.dataset.beat = "";
+
+		// no animation (and so no animationend) with reduced motion: just flash the colour
+		if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			setTimeout(() => delete heart.dataset.beat, 800);
+		}
+	});
+
+	document.addEventListener("animationend", e => {
+		const heart = (e.target as Element).closest<HTMLElement>("[data-heart]");
+		if (heart) delete heart.dataset.beat;
+	});
+</script>
