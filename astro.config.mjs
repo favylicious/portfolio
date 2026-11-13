@@ -3,7 +3,6 @@ import { defineConfig } from "astro/config";
 import remarkSectionize from "remark-sectionize";
 
 import mdx from "@astrojs/mdx";
-import remarkToc from "remark-toc";
 
 import expressiveCode from "astro-expressive-code";
 import tailwindcss from "@tailwindcss/vite";
@@ -25,7 +24,7 @@ export default defineConfig({
     site: "https://favteo.com",
     markdown: {
         processor: unified({
-            remarkPlugins: [remarkToc, remarkSectionize, remarkLastUpdatedTime],
+            remarkPlugins: [remarkSectionize, remarkLastUpdatedTime],
         }),
     },
     image: {

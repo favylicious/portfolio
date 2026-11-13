@@ -46,13 +46,11 @@ const toc = buildToc(headings);
 <nav
 	id="toc"
 	class:list={[
-		"not-prose place-self-end self-start col-start-3 contents-center",
-		"row-start-1 row-[span_1_/_span_300]",
+		"not-prose row-start-1 col-start-3 justify-self-end self-start",
 		"hidden lg:block",
 		"sticky top-40", // height of navbar + top container padding
 		// a long ToC scrolls on its own instead of running off the bottom of the screen
 		"max-h-[calc(100dvh-12rem)] overflow-y-auto overscroll-contain",
-		"text-slate-700 rounded-xs scroll-mt-8",
 	]}
 	aria-label="Table of contents"
 >

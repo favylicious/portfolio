@@ -19,17 +19,21 @@ const { title, headings } = Astro.props;
 		class:list={[
 			// content typography: see src/styles/prose.css; components opt out with `not-prose`
 			"prose prose-invert content",
-			"*:not-[#toc]:col-start-1 md:*:not-[#toc]:col-start-2",
-			"px-8 sm:px-12 py-16 min-h-screen grid grid-cols-1 justify-center",
-			"sm:px-20",
+			"px-8 sm:px-20 py-16 min-h-screen grid grid-cols-1 justify-center",
 			"md:px-0 md:grid-cols-[1fr_var(--content-article-md)_1fr]",
 			"lg:grid-cols-[1fr_var(--content-article-lg)_var(--content-toc-lg)_1fr]",
-			"2lg:grid-cols-[1fr_var(--content-article-lg)_var(--content-toc-lg)_1fr]",
 			"xl:grid-cols-[1fr_var(--content-article-xl)_var(--content-toc-xl)_1fr]",
 			"2xl:grid-cols-[1fr_var(--content-article-2xl)_var(--content-toc-xl)_1fr]",
 		]}
 	>
-		<slot />
+		{/*
+			The post body is one grid item and the ToC another, both in row 1, so the sticky ToC can travel the
+			full height of the post. The body is itself a one-column grid, so its blocks keep grid layout (no
+			margin collapsing), exactly as when they were direct children of the article.
+		*/}
+		<div class="row-start-1 col-start-1 md:col-start-2 grid grid-cols-1 content-start">
+			<slot />
+		</div>
 		<Toc headings={headings} />
 	</article>
 	<slot name="related" />
