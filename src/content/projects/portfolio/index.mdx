@@ -49,7 +49,7 @@ So I went to do some research. Eventually, I came across [MDX](https://mdxjs.com
 libraries/frameworks like Vue, React and Astro directly in your markdown content. This seemed incredibly fitting for me as I wanted a way to
 quickly write content but also give myself some freedom to create custom components.
 
-I explored frameworks that supported MDX and landed on Astro. As luck would have it, 3.0 had recently released and I had heard a lot of exciting
+I explored frameworks that supported MDX and landed on Astro. As luck would have it, Astro 3.0 had just been released at the time and I had heard a lot of exciting
 prospects about it. Here's what it looked like:
 
 <Media src={OldSite1} alt="Old site" />
@@ -79,7 +79,7 @@ however, things change when it comes to markdown.
 
 ### Typography plugin
 
-Tailwind offers a plugin called [`@tailwindcss/typography`](https://github.com) specifically for styling rendered
+Tailwind offers a plugin called [`@tailwindcss/typography`](https://github.com/tailwindlabs/tailwindcss-typography) specifically for styling rendered
 markdown content. It offers fast and sensible defaults through the use of just one class - `prose`.
 This seemed like a perfect addition to my project, as despite the lack of need for markup anymore, I still didn't want
 to _style_ every component on my own!
@@ -105,16 +105,41 @@ class:list={[
 
 That's not even all the styling I wanted to apply! Honestly, I didn't expect the level of rigidity here. Most of the stylings were
 finicky to control through Tailwind, as selectors would get incredibly verbose. After some evaluation, I decided to bite the bullet
-and eventually dropped the library in favour of styling my own components. This actually benefitted me in the long run, as I realised that
-having complete control over what your styles was fun! Who knew, right?
+and dropped the library in favour of styling everything myself in one big stylesheet.
 
-Moral of the story; try it out yourself first, before reaching for a library. I'm not saying to reinvent the wheel every time here -
-Tailwind Typography is great for bunch of default styling that looks decent, but consider the tradeoffs when using a library like this.
+That worked for a while, but it came with its own problems. The styles leaked outside of the article, overrode any utility class I put
+on an element, and quietly skipped elements I hadn't written rules for, like bullet lists and blockquotes. So I eventually came back to
+the plugin - this time without the giant class list. `prose` provides sensible defaults for every element, and my own tweaks live in a
+small, plain CSS file that sits in Tailwind's utilities layer, after the plugin's styles:
+
+```css title="prose.css"
+@layer utilities {
+	.content {
+		/* skip anything inside .not-prose, just like the plugin does */
+		& :where(:not(.not-prose, .not-prose *)) {
+			&:where(h3) {
+				font-family: var(--font-display);
+				letter-spacing: 0.2rem;
+				text-transform: uppercase;
+				color: var(--color-primary);
+			}
+
+			/* ... */
+		}
+	}
+}
+```
+
+Components that want to style themselves, like the interactive demos in this post, simply opt out with a `not-prose` class.
+
+Moral of the story; try it out yourself first, before reaching for a library - and don't be afraid to come back to one with a different
+approach. I'm not saying to reinvent the wheel every time here - Tailwind Typography is great for bunch of default styling that looks
+decent, but consider the tradeoffs when using a library like this.
 
 ### Dealing with v4
 
-Just last week, Tailwind released a new major version, v4. This update included a ton of exciting new features, like the CSS Tailwind
-config file _(finally!),_ the `:not()` selector, and the new Oxide engine.
+In January 2025, Tailwind released a new major version, v4. This update included a ton of exciting new features, like the CSS Tailwind
+config file _(finally!),_ the `not-*` variant, and the new Oxide engine.
 
 I was keen to try it out, so in the middle of development, I upgraded to v4.
 This was not the brightest idea in hindsight, because initially the new architecture became remarkably _annoying_ to use. I felt myself fighting
@@ -152,9 +177,9 @@ Consider the equivalent without `@apply` in Tailwind and regular CSS:
 ```css title="css"
 #alert {
 	&[data-type="info"] pre {
-		background-color: --alpha(var(--color-slate-900) / 80%);
-		border-style: var(--tw-border-style);
-		border-width: 2px;
+		background-color: color-mix(in oklab, var(--color-slate-900) 80%, transparent);
+		border-left-style: solid;
+		border-left-width: 2px;
 		border-left-color: var(--color-blue-500);
 	}
 }
@@ -164,15 +189,16 @@ Both of these options are far more verbose. So what's wrong with `@apply`, reall
 
 There are a few problems. To understand them, let's talk about the terminology of styles in Astro.
 
-When we use the `<style>` tag in an Astro component, we create a **CSS module**. In these modules, our style is scoped to the existing component,
-which means that if we select `<p>` tags in the component, we only select ones that have been predefined,
-unless we explicitly target `<slot>` elements. The advantage of this is these component styles don't bleed into elsewhere in our app,
-which could unpredictable results. CSS modules are a very common paradigm employed by various app bundlers nowadays.
+When we use the `<style>` tag in an Astro component, our styles are **scoped** to that component by default. Astro rewrites each selector
+with a unique attribute (`p` becomes something like `p[data-astro-cid-x8kzm4dj]`), which means that if we select `<p>` tags in the component,
+we only select ones that the component renders itself - not ones passed in through a `<slot>`, unless we explicitly reach for `:global()`.
+The advantage of this is these component styles don't bleed into elsewhere in our app, which could cause unpredictable results.
+Scoped styles are a very common paradigm in component frameworks nowadays - Vue and Svelte do the same, and CSS Modules achieve a similar effect.
 
-Unfortunately, Tailwind doesn't play well with them. Firstly, whenever we use `@apply` in a module,
-we need to use `"@reference tailwindcss"` to link up Tailwind. This gives us access to either the default Tailwind styles or our own
-theme. The tradeoff is that this also makes Tailwind run a _separate_ time for every file we use `@reference` on! This is **_terrible_**
-for performance as it makes build times super slow.
+Unfortunately, Tailwind doesn't play well with them. Firstly, whenever we use `@apply` in a scoped `<style>` block,
+we need to use `@reference "tailwindcss";` (or a path to our own stylesheet) to link up Tailwind. This gives us access to either the
+default Tailwind styles or our own theme. The tradeoff is that each of these `<style>` blocks is processed by Tailwind _separately_ -
+sprinkle `@apply` and `@reference` across lots of components, and that extra work adds up in your build times.
 
 So what's the solution? Well, Tailwind recommends just simply making more isolated components with their own Tailwind classes, rather than
 depending on complex selectors. There is a natural inclination towards such a mentality when using libraries/frameworks like
@@ -184,24 +210,34 @@ a bit more consideration when building your components, but it'll be worth the f
 The one core Astro feature that populates my website is _content collections_. They're essentially just a set of data,
 like JSON files or entire blog posts, stored locally on the project.
 
-Normally, how you'd define a collection goes as follows:
+Here's how my `projects` collection is defined. Blog posts and projects share most of their fields, so those live in a common `post` schema:
 
 ```ts title="content.config.ts"
+const post = z.object({
+	title: z.string(),
+	description: z.string(),
+	pubDate: dateField, // a small helper that parses dates with date-fns
+	draft: z.boolean().optional().default(false),
+	tags: z.array(reference("tags")).default([]),
+	related: z
+		.object({
+			blog: z.array(reference("blog")).default([]),
+			projects: z.array(reference("projects")).default([]),
+		})
+		.default({ blog: [], projects: [] }),
+});
+
 const projects = defineCollection({
 	loader: glob({
-		pattern: "**/*.{md,mdx}",
+		pattern: "**/*.mdx",
 		base: "./src/content/projects",
 	}),
-	schema: z.object({
-		name: z.string(),
-		description: z.string(),
-		pubDate: z.coerce.date(),
-		githubUrl: z.string().optional(),
-		url: z.string().optional(),
-		draft: z.boolean().optional().default(false),
-		tags: z.array(reference("tags")).optional(),
-		related: z.array(reference("projects")).optional(),
-	}),
+	schema: z
+		.object({
+			url: z.string().optional(),
+			githubUrl: z.string().optional(),
+		})
+		.extend(post.shape),
 });
 ```
 
@@ -215,10 +251,7 @@ your frontmatter schema and provide generated Typescript types in the project. P
 	[Astro only supports most of Zod's
 	methods](https://docs.astro.build/en/guides/content-collections/#zod-schema-methods). Personally, I
 	don't really like Zod much more than other schema libraries like **Yup** or **Joi**. Instead, I much
-	prefer **Valibot**, mainly because it's a more lightweight and yet more powerful alternative. Zod comes in
-	at an indulgent **12kb** g-zipped, with no tree-shaking due to its API design. I find that a little too
-	hefty for a schema library. [Compare it to Valibot](https://valibot.dev/guides/comparison/), which
-	starts off at **95%** less than that.
+	prefer **Valibot**, mainly because it's a more lightweight and yet more powerful alternative.
 
     One curious thing to take note of is the [standard schema spec](https://standardschema.dev/), a way for
     validation libraries to adhere to a common interface. Libraries/frameworks like **react-hook-form** and Astro can implement
@@ -230,43 +263,43 @@ To demonstrate how the schema works, the frontmatter for this project looks like
 
 ```yaml
 ---
-name: "Portfolio"
-description: "This website you're viewing right now :)"
-pubDate: "2025-06-01"
+title: "Portfolio"
+description: "This very website :)"
+pubDate: "2025-02-01"
 draft: false
 tags:
     - "typescript"
     - "astro"
+    - "react"
+    - "motion"
     - "tailwindcss"
     - "cloudflare"
 ---
 ```
 
-Astro verifies the structure of the frontmatter props on every page load. For example, if `name` was omitted, Astro would complain and
-throw an error, and fail to render the markdown file.
+Astro verifies the structure of the frontmatter whenever it syncs your content - on every build, and whenever a file changes in dev.
+For example, if `title` was omitted, Astro would complain and throw an error, and the build would fail.
 
 As you've seen above, there are a quite a number of data types that are available for use in the schema. However, there is a special
 type created by Astro that's not natively in Zod - `reference`. It essentially allows you to refer to another collection entry via
-its slug. A collection can even reference itself!
+its `id` (for files loaded with `glob`, that's derived from the file path, e.g. `java-bitjam`). A collection can even reference itself!
 
-For instance, the `projects` collection references the `tags` and `projects` collections:
+For instance, the shared `post` schema references the `tags`, `blog` and `projects` collections - so a project can even list
+other projects as related:
 
-```ts title="content.config.ts" {13-14} collapse={2-5} collapseStyle="collapsible-start"
-const projects = defineCollection({
-	loader: glob({
-		pattern: "**/*.{md,mdx}",
-		base: "./src/content/projects",
-	}),
-	schema: z.object({
-		name: z.string(),
-		description: z.string(),
-		pubDate: z.coerce.date(),
-		githubUrl: z.string().optional(),
-		url: z.string().optional(),
-		draft: z.boolean().optional().default(false),
-		tags: z.array(reference("tags")).optional(),
-		related: z.array(reference("projects")).optional(),
-	}),
+```ts title="content.config.ts" {6-12} collapse={2-5} collapseStyle="collapsible-start"
+const post = z.object({
+	title: z.string(),
+	description: z.string(),
+	pubDate: dateField,
+	draft: z.boolean().optional().default(false),
+	tags: z.array(reference("tags")).default([]),
+	related: z
+		.object({
+			blog: z.array(reference("blog")).default([]),
+			projects: z.array(reference("projects")).default([]),
+		})
+		.default({ blog: [], projects: [] }),
 });
 ```
 
@@ -313,47 +346,53 @@ things in the project.
 If you inspect this page with dev tools, you'll see that I use CSS grid. Initially, I used flexbox to create the layout for the page, but
 it just didn't _feel_ right.
 
-I've prepared a rough demo below. **If you're on mobile, you may have to switch to a bigger device to see the full layout.**
-Adjust the slider to change the width of the viewport:
+I've prepared a rough demo below. It's a scaled-down version of the layout: it responds to the slider instead of your screen, so its
+breakpoints don't line up exactly with the real page, but the idea is the same.
+**If you're on mobile, you may have to switch to a bigger device to see the full layout.** Adjust the slider to change the width of the viewport:
 
 <GridExample />
 
 So, how was this accomplished?
 
-On mobile devices, there is only 1 column in the diagram, holding only the article content. But as we increase the viewport size,
-we gradually add more columns to the container. ToCs (Table-of-Contents) are not space-efficient on smaller screens, so we remove that functionality entirely.
-Once we pass the `xs` threshold, we add back the ToC column!
+On mobile devices, the page is a single column holding only the article content, with plain `padding` on either side - `2rem` on phones,
+and `5rem` once we pass the `sm` threshold. ToCs (Table-of-Contents) are not space-efficient on smaller screens, so we remove that
+functionality entirely.
 
 When we have a big enough viewport, we don't want the content to reach the ends of the screen. This can make reading feel clunky
-and difficult to digest, as the content is spread over a large area. To prevent this, we have to introduce some sort of padding on the
-horizontal axis of the page. We have two solutions: either use `padding`, or grid columns. We'll pick the latter option,
-for reasons I'll explain soon.
+and difficult to digest, as the content is spread over a large area. To prevent this, we need some sort of spacing on the
+horizontal axis of the page. We have two solutions: either keep using `padding`, or grid columns. From the `md` threshold onwards,
+we'll pick the latter option, for reasons I'll explain soon.
 
-To add padding, we insert divs at both ends that are `1fr` in width at the `sm` threshold, while the middle two have their own fixed width.
-`1fr` is a grid-exclusive unit that simply means; **_"occupy the remaining space"._**
+At `md`, the padding is dropped and the article becomes the middle of three columns: an empty `1fr` column on each side, and the content
+column fixed at `60ch`. `1fr` is a grid-exclusive unit that simply means; **_"occupy the remaining space"._** Once we pass the `lg` threshold,
+there's finally enough room for the ToC, so it gets its own fixed-width column next to the content. Past that, the content and ToC columns
+just get a little wider at `xl` and `2xl`.
 
-We can achieve all these through the use of `grid-template-columns`:
+We can achieve all these through the use of `grid-template-columns`. Here's what the page uses at the `xl` threshold:
 
 ```css title="css"
-#container {
+article {
 	display: grid;
-	grid-template-columns: 1fr 24rem 12rem 1fr;
+	grid-template-columns: 1fr 72ch 22rem 1fr;
 }
 ```
 
-```astro title="astro"
-<div
-	id="container"
+And here are the classes on the `<article>` that set this up at every size (simplified - the real code reads the widths from theme variables):
+
+```astro title="ContentLayout.astro"
+<article
 	class:list={[
-		"grid-cols-1",
-		"@xs:grid-cols-[3fr_1fr]",
-		"@md:grid-cols-[1fr_16rem_8rem_1fr]",
-		"@[39rem]:grid-cols-[1fr_24rem_12rem_1fr]",
-		"justify-center relative gap-2"
+		"grid grid-cols-1 justify-center px-8 sm:px-20",
+		"md:px-0 md:grid-cols-[1fr_60ch_1fr]",
+		"lg:grid-cols-[1fr_62ch_18rem_1fr]",
+		"xl:grid-cols-[1fr_72ch_22rem_1fr]",
+		"2xl:grid-cols-[1fr_80ch_22rem_1fr]",
 	]}
 >
-</div>
 ```
+
+The demo above uses the same idea, but with `@`-prefixed classes like `@md:grid-cols-[1fr_16rem_8rem_1fr]`, so that it reacts to the
+slider rather than your screen.
 
 <Alert type="info" title="What does that '@' character do?">
 	Tailwind v4 adds direct support for the [CSS Container Query
@@ -364,14 +403,16 @@ We can achieve all these through the use of `grid-template-columns`:
 	introducing container queries.
 </Alert>
 
-So why exactly did we choose these boxes over using the reliable `padding` property? It's kind of a personal preference.
-Let's consider how our layout stretches/shrinks with `padding` implemented:
+So why exactly did we choose these columns over the reliable `padding` property once the screen is wide enough? It's kind of a personal
+preference. Let's consider how the same layout stretches/shrinks with `padding` in place of the `1fr` columns:
 
 <PaddingExample />
 
-As you can see, it's quite similar. Our content still conforms to the viewport as we originally want. But obviously the glaring difference
-is the `padding`'s lack of care for the viewport, stretching past it. While this doesn't really matter much as these empty divs don't
-contain anything, I still find it a little unrefined in its implementation, hence I prefer using `fr`.
+As you can see, it's quite similar at the widest and narrowest sizes. But in between, the difference shows: `padding` is a fixed size, so
+as the space shrinks, the fixed-width content and ToC columns end up running over it instead of the spacing giving way. The `1fr` columns,
+on the other hand, simply shrink to whatever space is left. While this doesn't really matter much as that space is empty anyway, I still
+find the `padding` version a little unrefined, hence I prefer using `fr` once there's room for it. On small screens, where there's no
+fixed-width column to protect, plain `padding` does the job just fine.
 
 ## Interactive sections
 
@@ -407,20 +448,20 @@ To create a client island, we use the `client:*` directive on a component as fol
 
 There are a few `client*` directives available:
 
-1. `client:load` - Load the component only when the page has finished loading other static assets
+1. `client:load` - Load and hydrate the component immediately on page load
 2. `client:idle` - Load the component when the browser becomes idle
 3. `client:visible` - Load the component when it enters the viewport
 
 ### Using React
 
 I write these interactive components in React, which I wrap around an Astro component, `<Frame>`. As of now,
-`<Frame>` only provides common stylings and uses the `client:visible` directive,
+`<Frame>` only provides common stylings - each demo picks its own `client:*` directive (the layout examples above use `client:visible`),
 but I have plans to make it more composable to allow more interactivity in the future.
 
 <Alert type="info" title="Why not Svelte, or Solid.js?">
 	I chose React as it was the most familiar to me, backed by a solid ecosystem. I also use
-	[motion.dev]("https://motion.dev") as an animation library, which is only available for React and vanilla
-	JS. I admittedly have not tried Svelte or Solid.js in a while, but when I last used them, ecosystem support
+	[motion.dev](https://motion.dev) as an animation library, which has official versions for React, Vue and
+	vanilla JS, but not for Svelte or Solid.js. I admittedly have not tried Svelte or Solid.js in a while, but when I last used them, ecosystem support
 	was quite subpar. It has been a few years, so I could be very wrong now! I may consider looking into them
 	in the future, but as of now I have no plans.
 </Alert>

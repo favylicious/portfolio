@@ -1,14 +1,14 @@
-import { useState } from "react";
 import { cn } from "src/util/cn";
 
 import { Slider } from "@content/components/slider/Slider";
+import { useDemoWidth } from "@content/components/slider/useDemoWidth";
 
 export const GridExample = () => {
-	const [width, setWidth] = useState(100);
+	const { ref, style, setValue, label } = useDemoWidth();
 
 	return (
 		<>
-			<div style={{ width: `${width}%` }} className="@container min-w-48 h-96 bg-white/5 rounded-md p-2">
+			<div ref={ref} style={style} className="@container min-w-48 h-96 bg-white/5 rounded-md p-2">
 				<div
 					className={cn(
 						"h-full grid grid-cols-1 justify-center relative gap-2",
@@ -33,9 +33,9 @@ export const GridExample = () => {
 				</div>
 			</div>
 			<div className="mt-8 mb-6 my-4 w-full px-12 md:px-24 flex flex-col justify-center items-center space-y-4">
-				<Slider id="slider" defaultValue={100} onChange={setWidth}>
+				<Slider id="grid-example-slider" defaultValue={100} onChange={setValue}>
 					<span className="text-white">Current width: </span>
-					<span className="text-primary">{width}%</span>
+					<span className="text-primary">{label}</span>
 				</Slider>
 			</div>
 		</>
