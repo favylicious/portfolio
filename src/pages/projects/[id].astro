@@ -4,7 +4,7 @@ import Related from "@content/components/Related.astro";
 import Tags from "@content/components/Tags.astro";
 import ContentLayout from "@layouts/ContentLayout.astro";
 import { getEntries, render } from "astro:content";
-import { formatLongDate, parseDate } from "@util/date";
+import { formatCompactDate, parseDate } from "@util/date";
 import { getProjects } from "../../content.config";
 
 export async function getStaticPaths() {
@@ -22,15 +22,14 @@ const tags = await getEntries(project.data.tags);
 
 const { Content, headings, remarkPluginFrontmatter: frontmatter } = await render(project);
 
-const lastUpdated = formatLongDate(parseDate(frontmatter.lastUpdated));
+const lastUpdated = formatCompactDate(parseDate(frontmatter.lastUpdated));
 const { title, description, draft, pubDate, githubUrl, related, url } = project.data;
 ---
 
 <ContentLayout title={title} headings={headings} tags={tags}>
     <h1>{title}</h1>
     <div class="mb-6 font-display font-medium text-gray-600">
-        Published {formatLongDate(pubDate)} : updated&nbsp;
-        {lastUpdated}
+        Published {formatCompactDate(pubDate)} : updated {lastUpdated}
     </div>
     <Tags data={tags} />
     <Content components={mdxComponents} />

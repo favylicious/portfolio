@@ -21,9 +21,6 @@ export const parseDate = (value: string): Date => {
 	return date;
 };
 
-/** "February 1, 2025" */
-export const formatLongDate = (date: Date) => format(date, "MMMM d, yyyy", { in: inSiteZone });
-
 /** "01/02/2025" */
 export const formatShortDate = (date: Date) => format(date, "dd/MM/yyyy", { in: inSiteZone });
 
