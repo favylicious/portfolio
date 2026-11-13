@@ -27,5 +27,8 @@ export const formatLongDate = (date: Date) => format(date, "MMMM d, yyyy", { in:
 /** "01/02/2025" */
 export const formatShortDate = (date: Date) => format(date, "dd/MM/yyyy", { in: inSiteZone });
 
+/** "01/02/25" */
+export const formatCompactDate = (date: Date) => format(date, "dd/MM/yy", { in: inSiteZone });
+
 /** Oldest first. */
 export const byDateAsc = (a: Date, b: Date) => compareAsc(a, b);
