@@ -185,33 +185,3 @@
 @utility frame-border {
     @apply border-2 border-gray-600 ring-2 ring-slate-800 ring-offset-2 ring-offset-slate-900 bg-black/20 sm:rounded-md inset-shadow-sm inset-shadow-white/20;
 }
-
-@custom-variant cb {
-    .expressive-code {
-        @slot;
-    }
-}
-
-@custom-variant cbf {
-    .expressive-code > figure.frame {
-        @slot;
-    }
-}
-
-@custom-variant cbp {
-    .expressive-code > figure.frame pre {
-        @slot;
-    }
-}
-
-@custom-variant cbh {
-    .expressive-code > figure.frame.has-title > figcaption.header {
-        @slot;
-    }
-}
-
-@custom-variant cbt {
-    .expressive-code > figure.frame.has-title > figcaption.header > span.title {
-        @slot;
-    }
-}
