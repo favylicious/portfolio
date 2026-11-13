@@ -51,7 +51,8 @@ const mobileLink = "place-items-start text-4xl py-3";
         <NavLink href="/stuff" class={mobileLink}>stuff.</NavLink>
         <NavLink href="/contact" class={mobileLink}>contact.</NavLink>
     </nav>
-    <div class="backdrop col-span-full"></div>
+    <!-- no grid placement: an abspos grid child with one uses its grid area (inside the header padding) as containing block -->
+    <div class="backdrop"></div>
 </header>
 
 <script>
