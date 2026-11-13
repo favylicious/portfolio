@@ -23,8 +23,16 @@ const linkIcons = [
 		<div class="flex space-x-4 items-center">
 			{
 				linkIcons.map(l => (
-					<a href={l.url}>
-						<i class:list={[l.className, "w-8 h-8 text-3xl font-body"]}>{l.label}</i>
+					<a
+						href={l.url}
+						aria-label={l.label}
+						class:list={[
+							"inline-block rounded-xs focus-visible:ring-3",
+							// shrink, overshoot and settle each time the pointer enters
+							"motion-safe:hover:animate-pop",
+						]}
+					>
+						<i aria-hidden="true" class:list={[l.className, "w-8 h-8 text-3xl font-body"]}>{l.label}</i>
 					</a>
 				))
 			}
