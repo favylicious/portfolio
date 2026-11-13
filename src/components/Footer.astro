@@ -7,15 +7,9 @@ const linkIcons = [
 		label: "GitHub",
 	},
 	{
-		className: "fa-brands fa-bluesky",
-		name: "Bluesky",
-		url: "https://bsky.app/profile/favteo.bsky.social",
-		label: "Bluesky",
-	},
-	{
 		className: "fa-brands fa-linkedin",
 		name: "Linkedin",
-		url: "https://linkedin.com/favian-teo-eu-kiat",
+		url: "https://www.linkedin.com/in/favian-teo-eu-kiat",
 		label: "Linkedin",
 	},
 ];
@@ -29,8 +23,16 @@ const linkIcons = [
 		<div class="flex space-x-4 items-center">
 			{
 				linkIcons.map(l => (
-					<a href={l.url}>
-						<i class:list={[l.className, "w-8 h-8 text-3xl font-body"]}>{l.label}</i>
+					<a
+						href={l.url}
+						aria-label={l.label}
+						class:list={[
+							"inline-block rounded-xs focus-visible:ring-3",
+							// shrink, overshoot and settle each time the pointer enters
+							"motion-safe:hover:animate-pop",
+						]}
+					>
+						<i aria-hidden="true" class:list={[l.className, "w-8 h-8 text-3xl font-body"]}>{l.label}</i>
 					</a>
 				))
 			}
@@ -38,6 +40,38 @@ const linkIcons = [
 		<div class="bg-gray-800 grow h-0.5"></div>
 	</div>
 	<p class="group mt-12 col-span-5 text-center place-self-center">
-		Built with <i class="ph-fill ph-heart group-hover:text-pink-400 transition-colors">love</i> by favian
+		Built with <button
+			type="button"
+			data-heart
+			aria-label="love"
+			class:list={[
+				"inline-block align-middle cursor-pointer rounded-xs focus-visible:ring-3",
+				"group-hover:text-pink-400 data-beat:text-pink-400 transition-colors",
+				"data-beat:motion-safe:animate-heartbeat",
+			]}
+		><i aria-hidden="true" class="ph-fill ph-heart">love</i></button> by favian
 	</p>
 </footer>
+
+<script>
+	// Delegated so it keeps working after ClientRouter swaps the footer (this script runs once).
+	document.addEventListener("click", e => {
+		const heart = (e.target as Element).closest<HTMLElement>("[data-heart]");
+		if (!heart) return;
+
+		// restart the animation if it's clicked mid-beat
+		delete heart.dataset.beat;
+		void heart.offsetWidth;
+		heart.dataset.beat = "";
+
+		// no animation (and so no animationend) with reduced motion: just flash the colour
+		if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			setTimeout(() => delete heart.dataset.beat, 800);
+		}
+	});
+
+	document.addEventListener("animationend", e => {
+		const heart = (e.target as Element).closest<HTMLElement>("[data-heart]");
+		if (heart) delete heart.dataset.beat;
+	});
+</script>

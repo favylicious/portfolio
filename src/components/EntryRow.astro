@@ -1,6 +1,7 @@
 ---
 import type { BlogPost, Project } from "src/content.config";
 import { getEntries } from "astro:content";
+import { formatShortDate } from "@util/date";
 
 interface Props {
     baseUrl: string;
@@ -40,7 +41,7 @@ const tags = await getEntries(entry.data.tags);
             {entry.data.description}
         </p>
         <span class="flex float-end">
-            {entry.data.pubDate.toLocaleDateString("en-sg")}
+            {formatShortDate(entry.data.pubDate)}
         </span>
         <slot />
     </a>

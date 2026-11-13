@@ -3,11 +3,23 @@ import { z } from "astro/zod";
 import { defineCollection, getCollection, reference } from "astro:content";
 
 import type { CollectionEntry } from "astro:content";
+import { parseDate } from "./util/date";
+
+// Frontmatter dates are parsed with date-fns (see util/date). Quoted values arrive as strings;
+// unquoted YAML dates arrive as a Date at UTC midnight, which keeps its instant.
+const dateField = z.union([z.string(), z.date()]).transform((value, ctx) => {
+    try {
+        return parseDate(value instanceof Date ? value.toISOString() : value);
+    } catch (error) {
+        ctx.addIssue({ code: "custom", message: (error as Error).message });
+        return z.NEVER;
+    }
+});
 
 const post = z.object({
     title: z.string(),
     description: z.string(),
-    pubDate: z.coerce.date(),
+    pubDate: dateField,
     draft: z.boolean().optional().default(false),
     tags: z.array(reference("tags")).default([]),
     related: z

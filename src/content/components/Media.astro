@@ -14,7 +14,7 @@ const { src, alt } = Astro.props;
 	<dialog
 		id="modal"
 		open={false}
-		class="m-auto max-w-6xl backdrop:bg-black/50 backdrop:backdrop-blur-lg rounded-md"
+		class="not-prose m-auto max-w-6xl backdrop:bg-black/50 backdrop:backdrop-blur-lg rounded-md"
 	>
 		<Image class="relative w-full" src={src} alt={alt} />
 		<button
@@ -26,7 +26,7 @@ const { src, alt } = Astro.props;
 	<Image
 		id="preview"
 		priority
-		class="min-w-[calc(100%+4rem)] sm:min-w-[calc(100%+6rem)] lg:min-w-[calc(100%+4rem)] -ml-8 block mt-8 mb-12 frame-border cursor-pointer"
+		class="not-prose min-w-[calc(100%+4rem)] sm:min-w-[calc(100%+6rem)] lg:min-w-[calc(100%+4rem)] -ml-8 block mt-8 mb-12 frame-border cursor-pointer"
 		src={src}
 		alt={alt}
 	/>

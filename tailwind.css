@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./src/styles/prose.css";
+@plugin "@tailwindcss/typography";
 
 @theme {
     --color-zinc-*: initial;
@@ -21,6 +23,8 @@
 
     --animate-carousel: slide 10s linear infinite;
     --animate-fade-in: fade-in 0.2s ease-in-out;
+    --animate-pop: pop 0.45s ease-out;
+    --animate-heartbeat: heartbeat 0.8s ease-out;
 
     --ease-in-cubic: cubic-bezier(0.18, 0.89, 0.23, 1);
     --ease-in-jerk: cubic-bezier(0.14, -0.53, 0, 1);
@@ -53,6 +57,50 @@
         }
         to {
             opacity: 1;
+        }
+    }
+
+    /* shrink, overshoot, settle */
+    @keyframes pop {
+        0% {
+            transform: scale(1);
+        }
+        30% {
+            transform: scale(0.8);
+        }
+        65% {
+            transform: scale(1.1);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+
+    /* two quick beats, then a damped spring back to rest */
+    @keyframes heartbeat {
+        0% {
+            transform: scale(1);
+        }
+        12% {
+            transform: scale(1.35);
+        }
+        24% {
+            transform: scale(0.95);
+        }
+        36% {
+            transform: scale(1.3);
+        }
+        52% {
+            transform: scale(0.88);
+        }
+        68% {
+            transform: scale(1.08);
+        }
+        84% {
+            transform: scale(0.97);
+        }
+        100% {
+            transform: scale(1);
         }
     }
 }
@@ -182,34 +230,4 @@
 
 @utility frame-border {
     @apply border-2 border-gray-600 ring-2 ring-slate-800 ring-offset-2 ring-offset-slate-900 bg-black/20 sm:rounded-md inset-shadow-sm inset-shadow-white/20;
-}
-
-@custom-variant cb {
-    .expressive-code {
-        @slot;
-    }
-}
-
-@custom-variant cbf {
-    .expressive-code > figure.frame {
-        @slot;
-    }
-}
-
-@custom-variant cbp {
-    .expressive-code > figure.frame pre {
-        @slot;
-    }
-}
-
-@custom-variant cbh {
-    .expressive-code > figure.frame.has-title > figcaption.header {
-        @slot;
-    }
-}
-
-@custom-variant cbt {
-    .expressive-code > figure.frame.has-title > figcaption.header > span.title {
-        @slot;
-    }
 }

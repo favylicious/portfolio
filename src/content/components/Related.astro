@@ -1,0 +1,47 @@
+---
+import EntryRow from "@components/EntryRow.astro";
+import { getEntries } from "astro:content";
+import type { BlogPost, Project } from "src/content.config";
+
+interface Props {
+    related: (BlogPost | Project)["data"]["related"];
+}
+
+const { related } = Astro.props;
+
+const [projects, blogPosts] = await Promise.all([
+    getEntries(related.projects),
+    getEntries(related.blog),
+]);
+
+// drafts don't get pages, so linking to them would 404
+const visibleProjects = projects.filter(p => p && !p.data.draft);
+const visibleBlogPosts = blogPosts.filter(p => p && !p.data.draft);
+---
+
+{
+    (visibleProjects.length > 0 || visibleBlogPosts.length > 0) && (
+        <section class="my-24 mx-8 sm:mx-20 xl:mx-52">
+            {visibleProjects.length > 0 && (
+                <>
+                    <h1 class="mb-12">Related Projects</h1>
+                    <ul class="mb-16 flex flex-col divide-y-2 divide-gray-400/20">
+                        {visibleProjects.map(project => (
+                            <EntryRow baseUrl="/projects" entry={project} />
+                        ))}
+                    </ul>
+                </>
+            )}
+            {visibleBlogPosts.length > 0 && (
+                <>
+                    <h1 class="mb-12">Related Posts</h1>
+                    <ul class="flex flex-col divide-y-2 divide-gray-400/20">
+                        {visibleBlogPosts.map(post => (
+                            <EntryRow baseUrl="/blog" entry={post} />
+                        ))}
+                    </ul>
+                </>
+            )}
+        </section>
+    )
+}

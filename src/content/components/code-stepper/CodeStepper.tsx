@@ -1,9 +1,6 @@
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState } from "react";
-import { ShikiMagicMove } from "shiki-magic-move/react";
+import { motion, useReducedMotion } from "motion/react";
+import { useMemo, useState } from "react";
 import { cn } from "src/util/cn";
-
-import { highlighter } from "@util/highlighter";
 
 import { CodeBlock } from "./CodeBlock";
 
@@ -16,10 +13,14 @@ type Props = ComponentProps<"div"> &
 		lang: BundledLanguage;
 	};
 
+// Same convention as twoslash code blocks: lines up to and including `// ---cut---` are
+// context for the reader's editor/types and aren't shown.
+const CUT_MARKER = /^[\s\S]*?^\/\/ ---cut---[ \t]*\r?\n/m;
+const stripCut = (source: string) => source.replace(CUT_MARKER, "");
+
 export const CodeStepper: React.FC<Props> = ({ stepId, code, lang }) => {
 	const [step, setStep] = useState(0);
-	// we need react state to animate shiki code
-	const [currentCode, setCurrentCode] = useState(code[0]);
+	const steps = useMemo(() => code.map(stripCut), [code]);
 
 	const ticker = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 	const tickerOffset = 32;
@@ -31,15 +32,12 @@ export const CodeStepper: React.FC<Props> = ({ stepId, code, lang }) => {
 		setStep(step => step + direction);
 	};
 
-	useEffect(() => {
-		setCurrentCode(code[step]);
-	}, [code[step], step]);
-
 	return (
 		<div
 			// biome-ignore lint/a11y/noNoninteractiveTabindex: create a focusable context for arrow keys
 			tabIndex={0}
-			className="w-full flex flex-col"
+			aria-label="Code walkthrough, use the left and right arrow keys to change step"
+			className="w-full flex flex-col rounded-sm outline-none focus-visible:ring-3 focus-visible:ring-primary/60"
 			onKeyDown={e => {
 				switch (e.key) {
 					case "ArrowLeft": {
@@ -63,6 +61,7 @@ export const CodeStepper: React.FC<Props> = ({ stepId, code, lang }) => {
 				<button
 					type="button"
 					disabled={step === 0}
+					aria-label="Previous step"
 					onClick={() => paginate(-1)}
 					className={cn(
 						"p-2 flex justify-center items-center",
@@ -73,7 +72,7 @@ export const CodeStepper: React.FC<Props> = ({ stepId, code, lang }) => {
 						"rounded-lg transition"
 					)}
 				>
-					<i className="ph-bold ph-caret-left">previous</i>
+					<i aria-hidden="true" className="ph-bold ph-caret-left">previous</i>
 				</button>
 				<div className="flex h-8 text-center text-2xl text-primary font-bold font-display [&_span]:block [&_span]:leading-[32px] overflow-y-hidden">
 					<div className="mr-2 text-white">Step </div>
@@ -102,6 +101,7 @@ export const CodeStepper: React.FC<Props> = ({ stepId, code, lang }) => {
 				<button
 					type="button"
 					disabled={step === code.length - 1}
+					aria-label="Next step"
 					onClick={() => paginate(1)}
 					className={cn(
 						"p-2 flex justify-center items-center",
@@ -112,13 +112,12 @@ export const CodeStepper: React.FC<Props> = ({ stepId, code, lang }) => {
 						"rounded-lg transition"
 					)}
 				>
-					<i className="ph-bold ph-caret-right">next</i>
+					<i aria-hidden="true" className="ph-bold ph-caret-right">next</i>
 				</button>
 			</div>
-			<div className="min-h-fit mx-8 grid grid-cols-1 relative">
-				<div key={`${stepId}${step}`} className="col-start-1 row-start-1">
-					<CodeBlock code={currentCode} lang={lang} />
-				</div>
+			{/* one persistent instance, so shiki-magic-move morphs from the previous step's tokens */}
+			<div className="mx-4 sm:mx-8">
+				<CodeBlock code={steps[step]} lang={lang} reduceMotion={shouldReduceMotion ?? false} />
 			</div>
 		</div>
 	);

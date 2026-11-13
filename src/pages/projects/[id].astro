@@ -1,9 +1,10 @@
 ---
-import RelatedProjects from "@content/components/RelatedProjects.astro";
+import { mdxComponents } from "@content/components/mdx";
+import Related from "@content/components/Related.astro";
 import Tags from "@content/components/Tags.astro";
 import ContentLayout from "@layouts/ContentLayout.astro";
 import { getEntries, render } from "astro:content";
-import { DateTime } from "luxon";
+import { formatCompactDate, parseDate } from "@util/date";
 import { getProjects } from "../../content.config";
 
 export async function getStaticPaths() {
@@ -21,19 +22,16 @@ const tags = await getEntries(project.data.tags);
 
 const { Content, headings, remarkPluginFrontmatter: frontmatter } = await render(project);
 
-const lastUpdated = DateTime.fromISO(frontmatter.lastUpdated)
-    .toUTC(8)
-    .toLocaleString(DateTime.DATE_FULL);
+const lastUpdated = formatCompactDate(parseDate(frontmatter.lastUpdated));
 const { title, description, draft, pubDate, githubUrl, related, url } = project.data;
 ---
 
 <ContentLayout title={title} headings={headings} tags={tags}>
     <h1>{title}</h1>
     <div class="mb-6 font-display font-medium text-gray-600">
-        Published {DateTime.fromJSDate(pubDate).toUTC(8).toLocaleString(DateTime.DATE_FULL)} : updated&nbsp
-        {lastUpdated}
+        Published {formatCompactDate(pubDate)} : updated {lastUpdated}
     </div>
     <Tags data={tags} />
-    <Content />
-    {related && <RelatedProjects slot="related-projects" id={project.id} />}
+    <Content components={mdxComponents} />
+    <Related slot="related" related={related} />
 </ContentLayout>

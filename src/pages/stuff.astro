@@ -1,6 +1,7 @@
 ---
 import EntryRow from "@components/EntryRow.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
+import { byDateAsc } from "@util/date";
 import { getBlogPosts, getProjects } from "../content.config";
 
 const projects = await getProjects();
@@ -13,7 +14,7 @@ const blogPosts = await getBlogPosts();
         <ul class="flex flex-col divide-y-2 divide-gray-800">
             {
                 projects
-                    .sort((a, b) => a.data.pubDate.getTime() - b.data.pubDate.getTime())
+                    .sort((a, b) => byDateAsc(a.data.pubDate, b.data.pubDate))
                     .map(project => <EntryRow baseUrl="/projects" entry={project} />)
             }
         </ul>
@@ -21,7 +22,7 @@ const blogPosts = await getBlogPosts();
         <ul class="flex flex-col divide-y-2 divide-gray-400">
             {
                 blogPosts
-                    .sort((a, b) => a.data.pubDate.getTime() - b.data.pubDate.getTime())
+                    .sort((a, b) => byDateAsc(a.data.pubDate, b.data.pubDate))
                     .map(post => <EntryRow baseUrl="/blog" entry={post} />)
             }
         </ul>
