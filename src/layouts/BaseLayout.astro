@@ -51,7 +51,8 @@ const { title } = Astro.props;
 			<NavBar transition:animate="slide" />
 			<slot transition:animate="fade" />
 		</main>
-		<Glow class="fixed -top-40 -left-24 select-none pointer-events-none z-0 opacity-75" />
+		{/* opacity is baked into the gradient stops: element-level opacity re-quantises the dithered gradient and causes banding */}
+		<Glow class="fixed -top-40 -left-24 select-none pointer-events-none z-0" />
 		<Footer />
 	</body>
 </html>
