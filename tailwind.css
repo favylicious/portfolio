@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "./src/styles/prose.css";
+@plugin "@tailwindcss/typography";
 
 @theme {
     --color-zinc-*: initial;

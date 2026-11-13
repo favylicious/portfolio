@@ -1,0 +1,127 @@
+/*
+ * Site styles for rendered markdown/MDX, layered on top of @tailwindcss/typography.
+ * Usage: <article class="prose prose-invert content">
+ *
+ * - Typography provides defaults for every element (lists, blockquotes, tables, hr, img…);
+ *   this file only holds where the site deviates from them.
+ * - Lives in the utilities layer *after* Tailwind's generated utilities (it's imported after
+ *   tailwindcss), so at equal specificity it wins over the plugin's `.prose` rules.
+ * - Like the plugin, it skips anything inside `.not-prose`, so components with their own
+ *   styling (demos, tags, toc, file tree…) are left alone.
+ */
+@layer utilities {
+    .content {
+        /* inherited by not-prose components too, so keep the page defaults */
+        max-width: none;
+        font-size: var(--text-base);
+        line-height: 1.5rem;
+
+        & :where(:not(.not-prose, .not-prose *)) {
+            /* body text */
+            &:where(p) {
+                margin: 0 0 1.5rem;
+                font-size: var(--text-lg);
+                line-height: 1.625;
+                letter-spacing: 0.01rem;
+                text-wrap: pretty;
+                color: var(--color-white);
+            }
+
+            &:where(strong) {
+                font-weight: 700;
+                color: var(--color-white);
+            }
+
+            &:where(em) {
+                color: var(--color-white);
+            }
+
+            /* links render through <Link>, which draws its own underline */
+            &:where(a) {
+                font-weight: inherit;
+                text-decoration: none;
+                color: var(--color-white);
+            }
+
+            /* headings */
+            &:where(h1, h2, h3, h4) {
+                scroll-margin-top: 7rem;
+                font-weight: 700;
+            }
+
+            &:where(h1) {
+                margin: 0 0 3.5rem;
+                font-size: var(--text-5xl);
+                line-height: 3.5rem;
+                color: var(--color-white);
+            }
+
+            /*
+             * Sections (from remark-sectionize) are direct children of the article grid, and grid
+             * items don't collapse margins: the 4rem here plus the previous block's bottom margin
+             * gives the gap above each h2.
+             */
+            &:where(h2) {
+                margin: 4rem 0 2rem;
+                font-family: var(--font-body);
+                font-size: var(--text-3xl);
+                line-height: 2.25rem;
+                color: var(--color-primary);
+            }
+
+            &:where(h3) {
+                margin: 4rem 0 2rem;
+                font-family: var(--font-display);
+                font-size: var(--text-xl);
+                line-height: 1.75rem;
+                letter-spacing: 0.2rem;
+                text-transform: uppercase;
+                text-wrap: pretty;
+                color: var(--color-primary);
+            }
+
+            /* lists */
+            &:where(ol, ul) {
+                margin: 0 0 3rem;
+                padding-inline-start: 2.5rem;
+            }
+
+            &:where(li) {
+                margin: 0 0 1rem;
+                padding-inline-start: 0;
+                font-family: var(--font-body);
+                font-size: var(--text-lg);
+                line-height: 1.75rem;
+                color: var(--color-white);
+
+                &::marker {
+                    font-family: var(--font-display);
+                    color: var(--color-indigo-400);
+                }
+            }
+
+            &:where(blockquote) {
+                border-inline-start-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+                font-weight: 400;
+                color: var(--color-gray-300);
+            }
+
+            /* inline code; code blocks are rendered by expressive-code, which styles its own subtree */
+            &:where(:not(pre) > code) {
+                padding: 0.25rem;
+                border-radius: 0.25rem;
+                font-size: var(--text-sm);
+                line-height: 1.25rem;
+                font-weight: 400;
+                white-space: nowrap;
+                color: var(--color-white);
+                background-color: color-mix(in oklab, var(--color-gray-800) 80%, transparent);
+            }
+
+            &:where(code)::before,
+            &:where(code)::after {
+                content: none;
+            }
+        }
+    }
+}

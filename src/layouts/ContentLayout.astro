@@ -17,6 +17,8 @@ const { title, headings } = Astro.props;
 <BaseLayout title={title}>
 	<article
 		class:list={[
+			// content typography: see src/styles/prose.css; components opt out with `not-prose`
+			"prose prose-invert content",
 			"*:not-[#toc]:col-start-1 md:*:not-[#toc]:col-start-2",
 			"px-8 sm:px-12 py-16 min-h-screen grid grid-cols-1 justify-center",
 			"sm:px-20",
@@ -35,38 +37,6 @@ const { title, headings } = Astro.props;
 
 <style is:global>
 	@reference "../../tailwind.css";
-
-	h1 {
-		@apply text-5xl mb-14;
-	}
-
-	section {
-		@apply my-8 first-of-type:mt-20 last-of-type:mb-0 not-[section_&]:last-of-type:[&_>_p]:mb-0;
-
-		& > section {
-			@apply my-12;
-		}
-
-		& > p {
-			@apply mb-6 text-pretty tracking-[0.01rem];
-		}
-
-		& > :is(h2, h3) {
-			@apply text-primary scroll-mt-28;
-		}
-
-		& > h2 {
-			@apply mb-8 text-3xl;
-		}
-
-		& > h3 {
-			@apply mt-16 mb-8 text-xl text-pretty font-bold tracking-[0.2rem] font-display uppercase;
-		}
-
-		& > ol {
-			@apply ml-10 mb-12 text-white space-y-4 text-lg;
-		}
-	}
 
 	.expressive-code {
 		@apply -mx-8 mt-8 mb-12 frame-border;
@@ -102,13 +72,5 @@ const { title, headings } = Astro.props;
 				}
 			}
 		}
-	}
-
-	code:not(.expressive-code code) {
-		@apply p-1 rounded-sm text-sm bg-gray-800/80 whitespace-nowrap;
-	}
-
-	figcaption code {
-		@apply text-xs;
 	}
 </style>

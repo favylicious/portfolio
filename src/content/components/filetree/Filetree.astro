@@ -16,7 +16,7 @@ const { files, allOpen = false } = Astro.props;
 ---
 
 <div
-	class="mt-8 mb-12 sm:mx-8 md:mx-12 p-4 border-2 border-gray-600 ring-2 ring-slate-800 ring-offset-2 ring-offset-slate-900 bg-black/20 rounded-md"
+	class="not-prose mt-8 mb-12 sm:mx-8 md:mx-12 p-4 border-2 border-gray-600 ring-2 ring-slate-800 ring-offset-2 ring-offset-slate-900 bg-black/20 rounded-md"
 >
 	{files.map(f => <Directory name={f.name} files={f.files} open={allOpen || f.open} />)}
 </div>

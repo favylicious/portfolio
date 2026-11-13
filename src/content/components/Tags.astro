@@ -10,7 +10,7 @@ const { data } = Astro.props;
 const tags = await getEntries(data);
 ---
 
-<div class="mb-12 flex gap-2 flex-wrap">
+<div class="not-prose mb-12 flex gap-2 flex-wrap">
 	{
 		tags
 			.map(t => t.data)

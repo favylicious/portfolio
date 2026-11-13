@@ -42,6 +42,7 @@
 		"@shikijs/transformers": "^2.3.2",
 		"@shikijs/twoslash": "^2.1.0",
 		"@tailwindcss/postcss": "^4.3.3",
+		"@tailwindcss/typography": "^0.5.20",
 		"@tailwindcss/vite": "^4.3.3",
 		"@types/luxon": "^3.4.2",
 		"@types/node": "^22.13.1",

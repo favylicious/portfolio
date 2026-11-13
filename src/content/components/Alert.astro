@@ -11,9 +11,9 @@ const { type, title } = Astro.props;
 	id="alert"
 	data-type={type}
 	class:list={[
-		"[&_p]:not-last:mb-4 [&_p]:text-white [&_p]:font-body [&_p]:text-base",
+		"[&_p]:my-0 [&_p]:not-last:mb-4 [&_p]:text-white [&_p]:font-body [&_p]:text-base",
 		"[&_a,p]:text-base",
-		"-mx-8 mt-8 mb-12 px-7 py-6 rounded-xs not-prose relative",
+		"-mx-8 mt-8 mb-12 px-7 py-6 rounded-xs relative",
 		{
 			"bg-blue-950/40 border-l-4 border-l-blue-300/60": type === "info",
 			"bg-green-950/40 border-l-4 border-l-green-300/60": type === "success",
@@ -24,7 +24,7 @@ const { type, title } = Astro.props;
 >
 	<h4
 		class:list={[
-			"mb-4 text-lg font-bold font-body",
+			"not-prose mb-4 text-lg font-bold font-body",
 			{
 				"text-blue-400": type === "info",
 				"text-green-400": type === "success",
