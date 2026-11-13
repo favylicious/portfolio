@@ -82,38 +82,75 @@ const toc = buildToc(headings);
 </style>
 
 <script>
-	let observer: IntersectionObserver | undefined;
+	// Scroll-spy: the active entry is the last heading scrolled past a line just below the navbar.
+	// For a sub-heading, its parent entries are marked too, so the whole section reads as current.
+	const ACTIVE_LINE = 160; // px from the top of the viewport
 
-	// mark active toc links on every page load containing blog/project.
-	// bundled script: runs once, so this listener is only registered once.
+	// bundled script: runs once, so reset per page instead of stacking listeners
+	let controller: AbortController | undefined;
+
 	document.addEventListener("astro:page-load", () => {
-		observer?.disconnect();
-		observer = undefined;
+		controller?.abort();
+		controller = undefined;
 
-		const sections = document.querySelectorAll("article section");
-		if (sections.length === 0) return;
+		const toc = document.querySelector<HTMLElement>("#toc");
+		if (!toc) return;
 
-		observer = new IntersectionObserver(s => {
-			for (const section of s) {
-				const id = section.target.querySelector("h2, h3")?.getAttribute("id");
-				if (!id) continue;
-
-				const link = document.querySelector(`article #toc li a[href="#${CSS.escape(id)}"]`);
-				if (!link) continue;
-
-				if (section.intersectionRatio > 0) {
-					link.classList.replace("text-gray-600", "text-indigo-400");
-					link.classList.replace("hover:text-gray-400", "hover:text-indigo-300");
-					continue;
-				}
-
-				link.classList.replace("text-indigo-400", "text-gray-600");
-				link.classList.replace("hover:text-indigo-300", "hover:text-gray-400");
-			}
+		const entries = [...toc.querySelectorAll<HTMLAnchorElement>("a[data-toc-link]")].flatMap(link => {
+			const heading = document.getElementById(decodeURIComponent(link.hash.slice(1)));
+			return heading ? [{ link, heading }] : [];
 		});
+		if (entries.length === 0) return;
 
-		for (const section of sections) {
-			observer.observe(section);
-		}
+		controller = new AbortController();
+		const { signal } = controller;
+
+		const update = () => {
+			const atBottom = innerHeight + scrollY >= document.documentElement.scrollHeight - 2;
+
+			let active = atBottom ? entries.at(-1) : undefined;
+			if (!active) {
+				for (const entry of entries) {
+					if (entry.heading.getBoundingClientRect().top > ACTIVE_LINE) break;
+					active = entry;
+				}
+			}
+
+			for (const { link } of entries) {
+				link.removeAttribute("aria-current");
+				delete link.dataset.ancestor;
+			}
+			if (!active) return;
+
+			active.link.setAttribute("aria-current", "location");
+			for (let li = active.link.closest("li")?.parentElement?.closest("li"); li; li = li.parentElement?.closest("li")) {
+				const parentLink = li.querySelector<HTMLAnchorElement>(":scope > a[data-toc-link]");
+				if (parentLink) parentLink.dataset.ancestor = "";
+			}
+		};
+
+		let frame = 0;
+		const schedule = () => {
+			if (!frame) frame = requestAnimationFrame(() => ((frame = 0), update()));
+		};
+		addEventListener("scroll", schedule, { passive: true, signal });
+		addEventListener("resize", schedule, { passive: true, signal });
+		update();
+
+		// smooth-scroll to the clicked heading (instant with reduced motion)
+		toc.addEventListener(
+			"click",
+			e => {
+				const link = (e.target as Element).closest<HTMLAnchorElement>("a[data-toc-link]");
+				const target = link && document.getElementById(decodeURIComponent(link.hash.slice(1)));
+				if (!link || !target) return;
+
+				e.preventDefault();
+				const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+				target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth" });
+				history.replaceState(history.state, "", link.hash);
+			},
+			{ signal },
+		);
 	});
 </script>

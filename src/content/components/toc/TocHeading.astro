@@ -4,26 +4,31 @@ import type { Heading } from "./Toc.astro";
 type Props = { heading: Heading };
 
 const { heading } = Astro.props;
-const isSubheading = heading.depth === 3;
+const isSubheading = heading.depth > 2;
 ---
 
-<li class:list={[`${isSubheading ? "ml-6 text-sm min-h-6" : "flex flex-col"}`]}>
+<li class:list={[isSubheading && "ml-6"]}>
 	<a
 		href={`#${heading.slug}`}
+		data-toc-link
 		class:list={[
-			"max-w-[20ch] py-1 text-base font-body font-medium text-gray-600 hover:text-gray-400 text-balance transition-colors",
-			isSubheading && "block w-full",
+			"block max-w-[20ch] py-1 font-body font-medium text-balance transition-colors",
+			isSubheading ? "text-sm" : "text-base",
+			// the active entry (and the section it belongs to) is set by the scroll-spy in Toc.astro
+			"text-gray-400 hover:text-white",
+			"aria-[current=location]:text-indigo-400 data-ancestor:text-indigo-400",
+			"aria-[current=location]:hover:text-indigo-300 data-ancestor:hover:text-indigo-300",
 		]}
 	>
 		{heading.text}
-		{
-			heading.subheadings.length > 0 && (
-				<ul class="h-fit mb-1.5">
-					{heading.subheadings.map(subheading => (
-						<Astro.self heading={subheading} />
-					))}
-				</ul>
-			)
-		}
 	</a>
+	{
+		heading.subheadings.length > 0 && (
+			<ul class="mb-1.5">
+				{heading.subheadings.map(subheading => (
+					<Astro.self heading={subheading} />
+				))}
+			</ul>
+		)
+	}
 </li>
