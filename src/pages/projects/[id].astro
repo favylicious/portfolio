@@ -1,4 +1,5 @@
 ---
+import { mdxComponents } from "@content/components/mdx";
 import Related from "@content/components/Related.astro";
 import Tags from "@content/components/Tags.astro";
 import ContentLayout from "@layouts/ContentLayout.astro";
@@ -34,6 +35,6 @@ const { title, description, draft, pubDate, githubUrl, related, url } = project.
         {lastUpdated}
     </div>
     <Tags data={tags} />
-    <Content />
+    <Content components={mdxComponents} />
     <Related slot="related" related={related} />
 </ContentLayout>
