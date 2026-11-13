@@ -21,16 +21,29 @@ import Logo from "@assets/logo.svg";
                 <NavLink href="/contact">contact.</NavLink>
             </div>
         </div>
-        <input
-            id="menu"
-            type="checkbox"
-            aria-label="Toggle Menu"
-            class="appearance-none m-0 px-1 md:hidden ph-bold ph-list checked:ph-x text-primary text-4xl cursor-pointer focus-visible:ring-3 rounded-md"
-        />
+        <label
+            class="md:hidden grid *:col-start-1 *:row-start-1 px-1 text-primary text-4xl cursor-pointer rounded-md has-focus-visible:ring-3"
+        >
+            <input id="menu" type="checkbox" aria-label="Toggle menu" class="peer sr-only" />
+            <i
+                aria-hidden="true"
+                class="ph-bold ph-list transition-[opacity,rotate] duration-300 peer-checked:opacity-0 peer-checked:rotate-90 motion-reduce:transition-none"
+            ></i>
+            <i
+                aria-hidden="true"
+                class="ph-bold ph-x opacity-0 -rotate-90 transition-[opacity,rotate] duration-300 peer-checked:opacity-100 peer-checked:rotate-0 motion-reduce:transition-none"
+            ></i>
+        </label>
     </nav>
 
     <nav
-        class="nav-links col-span-3 min-h-screen p-24 hidden peer-has-checked:flex flex-col space-y-4 bg-secondary fixed inset-x-0"
+        class:list={[
+            "nav-links col-span-3 min-h-screen p-24 flex flex-col space-y-4 bg-secondary fixed inset-x-0 md:hidden",
+            // fade + slight drop in; visibility keeps the closed menu out of tab order and clicks
+            "invisible opacity-0 -translate-y-2",
+            "peer-has-checked:visible peer-has-checked:opacity-100 peer-has-checked:translate-y-0",
+            "transition-[opacity,translate,visibility] duration-300 ease-out motion-reduce:transition-none",
+        ]}
     >
         <NavLink href="/#about">about me.</NavLink>
         <NavLink href="/stuff">stuff.</NavLink>
@@ -44,6 +57,15 @@ import Logo from "@assets/logo.svg";
 
     // ClientRouter swaps the header on every navigation, so re-attach to the new one
     document.addEventListener("astro:page-load", () => {
+        const menu = document.querySelector<HTMLInputElement>("#menu");
+
+        // close the mobile menu when following a link (e.g. /#about on the same page)
+        document.querySelectorAll(".nav-links a").forEach(link =>
+            link.addEventListener("click", () => {
+                if (menu) menu.checked = false;
+            }),
+        );
+
         observer?.disconnect();
 
         const header = document.querySelector("header");
@@ -55,6 +77,15 @@ import Logo from "@assets/logo.svg";
         );
 
         observer.observe(header);
+    });
+
+    // Escape closes the mobile menu (registered once; the script only runs once)
+    document.addEventListener("keydown", e => {
+        const menu = document.querySelector<HTMLInputElement>("#menu");
+        if (e.key === "Escape" && menu?.checked) {
+            menu.checked = false;
+            menu.focus();
+        }
     });
 </script>
 
