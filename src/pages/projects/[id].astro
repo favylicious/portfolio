@@ -22,7 +22,7 @@ const tags = await getEntries(project.data.tags);
 const { Content, headings, remarkPluginFrontmatter: frontmatter } = await render(project);
 
 const lastUpdated = DateTime.fromISO(frontmatter.lastUpdated)
-    .toUTC(8)
+    .setZone("Asia/Singapore")
     .toLocaleString(DateTime.DATE_FULL);
 const { title, description, draft, pubDate, githubUrl, related, url } = project.data;
 ---
@@ -30,7 +30,7 @@ const { title, description, draft, pubDate, githubUrl, related, url } = project.
 <ContentLayout title={title} headings={headings} tags={tags}>
     <h1>{title}</h1>
     <div class="mb-6 font-display font-medium text-gray-600">
-        Published {DateTime.fromJSDate(pubDate).toUTC(8).toLocaleString(DateTime.DATE_FULL)} : updated&nbsp
+        Published {DateTime.fromJSDate(pubDate).setZone("Asia/Singapore").toLocaleString(DateTime.DATE_FULL)} : updated&nbsp;
         {lastUpdated}
     </div>
     <Tags data={tags} />

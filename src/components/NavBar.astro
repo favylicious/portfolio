@@ -32,7 +32,7 @@ import Logo from "@assets/logo.svg";
     <nav
         class="nav-links col-span-3 min-h-screen p-24 hidden peer-has-checked:flex flex-col space-y-4 bg-secondary fixed inset-x-0"
     >
-        <NavLink href="/about">about me.</NavLink>
+        <NavLink href="/#about">about me.</NavLink>
         <NavLink href="/stuff">stuff.</NavLink>
         <NavLink href="/contact">contact.</NavLink>
     </nav>
@@ -40,18 +40,22 @@ import Logo from "@assets/logo.svg";
 </header>
 
 <script>
-    document.querySelector("#menu")!.addEventListener("click", () => {
-        document.querySelector(".nav-links")!.classList.toggle("expanded");
+    let observer: IntersectionObserver | undefined;
+
+    // ClientRouter swaps the header on every navigation, so re-attach to the new one
+    document.addEventListener("astro:page-load", () => {
+        observer?.disconnect();
+
+        const header = document.querySelector("header");
+        if (!header) return;
+
+        observer = new IntersectionObserver(
+            ([e]) => e.target.classList.toggle("bg-transparent", e.intersectionRatio < 1),
+            { threshold: [1], rootMargin: "4px 0px 0px 0px" },
+        );
+
+        observer.observe(header);
     });
-
-    const header = document.querySelector("header")!;
-
-    const observer = new IntersectionObserver(
-        ([e]) => e.target.classList.toggle("bg-transparent", e.intersectionRatio < 1),
-        { threshold: [1], rootMargin: "4px 0px 0px 0px" },
-    );
-
-    observer.observe(header);
 </script>
 
 <style>

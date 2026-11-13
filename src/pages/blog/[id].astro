@@ -9,14 +9,14 @@ import { getBlogPosts } from "../../content.config";
 
 export async function getStaticPaths() {
     const posts = await getBlogPosts();
-    const tags = await getEntries(posts.flatMap(post => post.data.tags ?? []));
     return posts.map(post => ({
         params: { id: post.id },
-        props: { post, tags },
+        props: { post },
     }));
 }
 
-const { post, tags } = Astro.props;
+const { post } = Astro.props;
+const tags = await getEntries(post.data.tags);
 const {
     Content,
     headings,
@@ -24,7 +24,7 @@ const {
 } = await render(post);
 
 const lastUpdated = DateTime.fromISO(frontmatter.lastUpdated)
-    .toUTC(8)
+    .setZone("Asia/Singapore")
     .toLocaleString(DateTime.DATE_FULL);
 const { title, description, draft, pubDate, related } = post.data;
 ---
@@ -34,7 +34,7 @@ const { title, description, draft, pubDate, related } = post.data;
     <div class="mb-6 font-display font-medium text-gray-600">
         Published {
             DateTime.fromJSDate(pubDate)
-                .toUTC(8)
+                .setZone("Asia/Singapore")
                 .toLocaleString(DateTime.DATE_FULL)
         } : updated {lastUpdated}
     </div>
