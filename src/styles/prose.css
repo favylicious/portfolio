@@ -123,5 +123,11 @@
                 content: none;
             }
         }
+
+        /* code blocks: only the outer frame; the block itself is configured in ec.config.mjs */
+        & .expressive-code {
+            margin: 2rem -2rem 3rem;
+            @apply frame-border;
+        }
     }
 }
