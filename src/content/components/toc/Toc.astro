@@ -50,6 +50,8 @@ const toc = buildToc(headings);
 		"row-start-1 row-[span_1_/_span_300]",
 		"hidden lg:block",
 		"sticky top-40", // height of navbar + top container padding
+		// a long ToC scrolls on its own instead of running off the bottom of the screen
+		"max-h-[calc(100dvh-12rem)] overflow-y-auto overscroll-contain",
 		"text-slate-700 rounded-xs scroll-mt-8",
 	]}
 	aria-label="Table of contents"
@@ -61,11 +63,13 @@ const toc = buildToc(headings);
 </nav>
 
 <style>
-	#toc {
-		animation-name: animateIn;
-		animation-duration: 1.4s;
-		animation-fill-mode: forwards;
-		animation-timing-function: var(--ease-in-cubic);
+	@media (prefers-reduced-motion: no-preference) {
+		#toc {
+			animation-name: animateIn;
+			animation-duration: 1.4s;
+			animation-fill-mode: forwards;
+			animation-timing-function: var(--ease-in-cubic);
+		}
 	}
 
 	@keyframes animateIn {
@@ -126,6 +130,15 @@ const toc = buildToc(headings);
 			for (let li = active.link.closest("li")?.parentElement?.closest("li"); li; li = li.parentElement?.closest("li")) {
 				const parentLink = li.querySelector<HTMLAnchorElement>(":scope > a[data-toc-link]");
 				if (parentLink) parentLink.dataset.ancestor = "";
+			}
+
+			// on short screens the ToC scrolls itself; keep the active entry in view
+			// (adjusting scrollTop directly, since scrollIntoView would also scroll the page)
+			if (toc.scrollHeight > toc.clientHeight) {
+				const linkBox = active.link.getBoundingClientRect();
+				const tocBox = toc.getBoundingClientRect();
+				if (linkBox.top < tocBox.top) toc.scrollTop -= tocBox.top - linkBox.top + 8;
+				else if (linkBox.bottom > tocBox.bottom) toc.scrollTop += linkBox.bottom - tocBox.bottom + 8;
 			}
 		};
 
