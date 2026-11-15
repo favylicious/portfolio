@@ -1,45 +1,80 @@
 ---
-const linkIcons = [
-	{
-		className: "fa-brands fa-github",
-		name: "GitHub",
-		url: "https://github.com/favylicious",
-		label: "GitHub",
-	},
-	{
-		className: "fa-brands fa-linkedin",
-		name: "Linkedin",
-		url: "https://www.linkedin.com/in/favian-teo-eu-kiat",
-		label: "Linkedin",
-	},
+import { ArrowUpRight } from "lucide-react";
+import FooterPlug from "./FooterPlug";
+
+const links = [
+	{ name: "github.", url: "https://github.com/favylicious" },
+	{ name: "linkedin.", url: "https://www.linkedin.com/in/favian-teo-eu-kiat" },
 ];
 ---
 
+<!-- grows to the full viewport width as it scrolls in (see <style>); on the navbar's grid
+     (content-grid), so its content lines up with the navbar's -->
 <footer
-	class="py-24 px-12 md:px-24 lg:px-32 2lg:px-36 xl:px-40 grid grid-cols-5 text-white bg-secondary/40 z-30 relative"
+	id="footer"
+	class="site-footer content-grid py-28 text-white z-30 relative"
 >
-	<div class="col-span-5 flex items-center space-x-6">
-		<div class="bg-gray-800 grow h-0.5"></div>
-		<div class="flex space-x-4 items-center">
+	<!-- one large, faint, grainy glow in the bottom-right corner, drawn once
+	     by footer-glow.ts on a canvas covering the footer: behind the content (-z-10 within the
+	     footer) and not moved by the rise-in (translate-none!), so like the footer's background it
+	     stays put -->
+	<div
+		data-footer-glow
+		aria-hidden="true"
+		class="pointer-events-none absolute inset-0 -z-10 overflow-hidden translate-none!"
+	>
+	</div>
+	<!-- the section heading, in the same serif style and column as "journey." and "projects." -->
+	<h2
+		id="connect-heading"
+		class="relative z-20 mb-24 md:col-start-2 font-serif text-7xl font-normal text-white"
+	>
+		connect.
+	</h2>
+	<!-- the social links as large Satoshi (body face) links, a step smaller than the heading's
+	     visual weight, stacked, their frames as wide as the navbar -->
+	<nav aria-labelledby="connect-heading" class="relative z-20 md:col-start-2">
+		<!-- gap-y-10 equals the frames' reach above and below their items (2 × -inset-y-5), so
+		     consecutive frames touch -->
+		<ul class="flex list-none flex-col items-stretch gap-y-10">
 			{
-				linkIcons.map(l => (
-					<a
-						href={l.url}
-						aria-label={l.label}
-						class:list={[
-							"inline-block rounded-xs focus-visible:ring-3",
-							// shrink, overshoot and settle each time the pointer enters
-							"motion-safe:hover:animate-pop",
-						]}
-					>
-						<i aria-hidden="true" class:list={[l.className, "w-8 h-8 text-3xl font-body"]}>{l.label}</i>
-					</a>
+				links.map(({ name, url }) => (
+					<li class="group/item relative mx-4">
+						{/* the item spans the column; mx-4 cancels the frame's -inset-x-4, so the frame's edges
+						    (not the text) sit on the navbar's left and right lines */}
+						{/* the plug's port (FooterPlug.tsx): an invisible frame around the link, drawn only as
+						    a faint underline along its bottom edge. The plug seats
+						    against the middle of its left edge, which fills the frame (the span below) */}
+						<span
+							data-socket
+							aria-hidden="true"
+							class="pointer-events-none absolute -inset-x-4 -inset-y-5 border-b border-white/12"
+						/>
+						{/* the frame's dithered fill while the plug is in (footer-wipe.ts) */}
+						<span
+							data-footer-wipe
+							aria-hidden="true"
+							class="pointer-events-none absolute -inset-x-4 -inset-y-5"
+						/>
+						{/* as wide as the item, and its ::after covers the whole frame (the same insets as the
+						    socket), so the frame is the click target, not just the words */}
+						<a
+							href={url}
+							class="group/link relative flex items-start gap-2 after:absolute after:-inset-x-4 after:-inset-y-5 after:content-[''] rounded-xs font-body text-5xl leading-none font-normal tracking-normal text-white transition-colors duration-300 hover:text-primary focus-visible:text-primary focus-visible:ring-3 focus-visible:outline-none group-data-wiped/item:text-secondary! lg:text-7xl"
+						>
+							{name}
+							<ArrowUpRight
+								aria-hidden="true"
+								className="size-[0.35em] shrink-0 transition-transform duration-300 group-hover/link:translate-x-1 group-hover/link:-translate-y-1 motion-reduce:transition-none"
+							/>
+						</a>
+					</li>
 				))
 			}
-		</div>
-		<div class="bg-gray-800 grow h-0.5"></div>
-	</div>
-	<p class="group mt-12 col-span-5 text-center place-self-center">
+		</ul>
+	</nav>
+	<FooterPlug client:visible />
+	<p class="group mt-24 md:col-start-2 justify-self-end text-right">
 		Built with <button
 			type="button"
 			data-heart
@@ -54,24 +89,120 @@ const linkIcons = [
 </footer>
 
 <script>
-	// Delegated so it keeps working after ClientRouter swaps the footer (this script runs once).
-	document.addEventListener("click", e => {
-		const heart = (e.target as Element).closest<HTMLElement>("[data-heart]");
-		if (!heart) return;
+	import { attachFooterGlow } from "@/lib/footer-glow";
+	import { attachFooterHeart } from "@/lib/footer-heart";
+	import { attachFooterWipe } from "@/lib/footer-wipe";
 
-		// restart the animation if it's clicked mid-beat
-		delete heart.dataset.beat;
-		void heart.offsetWidth;
-		heart.dataset.beat = "";
-
-		// no animation (and so no animationend) with reduced motion: just flash the colour
-		if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
-			setTimeout(() => delete heart.dataset.beat, 800);
-		}
+	let cleanupHeart: (() => void) | undefined;
+	document.addEventListener("astro:page-load", () => {
+		cleanupHeart?.();
+		const heart = document.querySelector<HTMLButtonElement>(".site-footer [data-heart]");
+		cleanupHeart = heart ? attachFooterHeart(heart) : undefined;
 	});
+	document.addEventListener("astro:before-swap", () => cleanupHeart?.());
 
-	document.addEventListener("animationend", e => {
-		const heart = (e.target as Element).closest<HTMLElement>("[data-heart]");
-		if (heart) delete heart.dataset.beat;
+	let cleanupGlows: (() => void) | undefined;
+	document.addEventListener("astro:page-load", () => {
+		cleanupGlows?.();
+		const host = document.querySelector<HTMLElement>(".site-footer [data-footer-glow]");
+		cleanupGlows = host ? attachFooterGlow(host) : undefined;
 	});
+	document.addEventListener("astro:before-swap", () => cleanupGlows?.());
+
+	// the frames' dithered fill while the plug is in
+	let cleanupWipe: (() => void) | undefined;
+	document.addEventListener("astro:page-load", () => {
+		cleanupWipe?.();
+		const footer = document.querySelector<HTMLElement>(".site-footer");
+		cleanupWipe = footer ? attachFooterWipe(footer) : undefined;
+	});
+	document.addEventListener("astro:before-swap", () => cleanupWipe?.());
 </script>
+
+<style>
+	.site-footer {
+		/* a step lighter than the page, so the panel reads as a surface as it grows; also the plug
+		   sockets' face colour */
+		--footer-bg: color-mix(in oklab, var(--color-white) 4%, var(--color-secondary));
+		/* a pale glow in the page's own blue: a darker navy at the bottom-left corner, through
+		   --footer-bg, to a lighter, slightly bluer tint of it at the top-right. Low contrast: every
+		   stop stays close to the page's background */
+		background: linear-gradient(
+			to top right,
+			color-mix(in oklab, #000 30%, var(--color-secondary)),
+			var(--footer-bg) 60%,
+			color-mix(in oklab, #6f8fd0 14%, var(--color-secondary))
+		);
+	}
+
+	/* a hairline border a little brighter than the background. Drawn by a pseudo-element rather
+	   than on the footer itself, so it can follow the clip's card shape while the footer expands
+	   (a border on the footer would be cut off by the clip) */
+	.site-footer::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		pointer-events: none;
+		border: 1px solid color-mix(in oklab, var(--color-white) 13%, var(--color-secondary));
+	}
+
+	/*
+	 * Scroll-linked: while the footer scrolls in (from its top edge entering the viewport to it being
+	 * fully in view at the page's end), it widens from an inset, rounded card to the full width and
+	 * rises into place: its top edge (clip) and its contents (--footer-rise) start 4.8rem low. Layout
+	 * never moves, so the page's scroll length stays put. Pure CSS (a view timeline); without support,
+	 * or with reduced motion, it's simply the end state.
+	 */
+	@property --footer-rise {
+		syntax: "<length>";
+		inherits: true;
+		initial-value: 0px;
+	}
+
+	.site-footer > * {
+		translate: 0 var(--footer-rise);
+	}
+
+	@supports (animation-timeline: view()) {
+		@media (prefers-reduced-motion: no-preference) {
+			.site-footer {
+				animation: footer-expand linear both;
+				/* named, so the border below can follow the same timeline */
+				view-timeline-name: --footer;
+				animation-timeline: --footer;
+				animation-range: entry 0% entry 100%;
+			}
+
+			/* the border traces the clip: the same inset and corner radius, on the same timeline */
+			.site-footer::after {
+				animation: footer-border linear both;
+				animation-timeline: --footer;
+				animation-range: entry 0% entry 100%;
+			}
+		}
+	}
+
+	@keyframes footer-border {
+		from {
+			inset: 4.8rem 12% 0;
+			border-radius: 2rem;
+		}
+
+		to {
+			inset: 0;
+			border-radius: 0;
+		}
+	}
+
+	@keyframes footer-expand {
+		from {
+			clip-path: inset(4.8rem 12% 0 round 2rem);
+			--footer-rise: 4.8rem;
+		}
+
+		to {
+			clip-path: inset(0 round 0);
+			--footer-rise: 0px;
+		}
+	}
+</style>

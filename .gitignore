@@ -27,3 +27,9 @@ pnpm-debug.log*
 .pnpm-store/
 
 .wrangler/
+
+# local audit backlog and plans
+plans/
+
+# local scratch notes (change summaries and the like)
+tmp/

@@ -15,6 +15,11 @@ import { unified } from "@astrojs/markdown-remark";
 export default defineConfig({
     vite: {
         plugins: [tailwindcss()],
+        // loaded on demand (the footer heart's confetti): pre-bundle it at startup, or the dev
+        // server only discovers it at that first import and answers "504 Outdated Optimize Dep"
+        optimizeDeps: {
+            include: ["canvas-confetti"],
+        },
         server: {
             allowedHosts: ["dev.favteo.com"],
         },

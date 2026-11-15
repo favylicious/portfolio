@@ -1,0 +1,404 @@
+---
+/**
+ * The journey (work, study, what's next) as a vertical ledger: a hairline rail with a dot per entry, mono dates on the left
+ * (above the title on mobile), serif titles. Oldest first, so scrolling down moves forward in time;
+ * the current role (no end date) is marked in primary and planned entries sit past a dashed segment.
+ *
+ * Two variants (data-variant on the root):
+ * - static: the ledger as drawn, no JS needed.
+ * - scroll (default): a reading line at the viewport's centre drives it. The rail fills with primary
+ *   up to the line, a glowing tip rides its leading edge, and each entry lights up (dot fills, text
+ *   comes up from dimmed) once its dot passes the line. Scroll-linked, so it stays on under reduced
+ *   motion; only the fade transitions are dropped. Without JS it falls back to the static look.
+ * In dev, the toolbar switcher or ?journey=static|scroll picks one.
+ *
+ * Geometry: each entry draws the rail segment from its own dot down to the next entry's dot (its
+ * height is 100% of the entry, since every dot sits at the same --dot-y within its entry), so a
+ * segment can be dashed on its own and filled on its own (--seg-fill, 0..1, via clip-path).
+ */
+import { Image } from "astro:assets";
+import { getJourney } from "../content.config";
+import { formatYear } from "@util/date";
+
+export type JourneyVariant = "static" | "scroll";
+const DEFAULT_VARIANT: JourneyVariant = "scroll";
+
+const entries = await getJourney();
+
+/**
+ * Splits a summary into text and inline links written as [label](url). Only http(s) links are
+ * linked; anything else is left as written.
+ */
+const INLINE_LINK = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+const parseSummary = (summary: string) => {
+    const parts: ({ text: string } | { label: string; url: string })[] = [];
+    let last = 0;
+    for (const match of summary.matchAll(INLINE_LINK)) {
+        if (match.index > last) parts.push({ text: summary.slice(last, match.index) });
+        parts.push({ label: match[1], url: match[2] });
+        last = match.index + match[0].length;
+    }
+    if (last < summary.length) parts.push({ text: summary.slice(last) });
+    return parts;
+};
+---
+
+<div data-journey-timeline data-variant={DEFAULT_VARIANT} class="journey-timeline relative">
+    <ol class="list-none">
+        {
+            entries.map(({ data }, index) => {
+                const current = !data.future && !data.end;
+                const dates = data.future
+                    ? "next"
+                    : `${formatYear(data.start)} — ${data.end ? formatYear(data.end) : "now"}`;
+                return (
+                    <li
+                        data-entry
+                        data-current={current || undefined}
+                        data-future={data.future || undefined}
+                        data-before-future={entries[index + 1]?.data.future || undefined}
+                        class="journey-entry relative pb-20 pl-10 last:pb-0 md:grid md:grid-cols-[9rem_1fr] md:gap-x-16 md:pl-0"
+                    >
+                        <span data-dot aria-hidden="true" class="journey-dot" />
+                        <p class="journey-fade font-display text-sm leading-5 tracking-widest text-muted-foreground md:pt-[calc(var(--dot-y)-0.625rem)]">
+                            {data.future ? (
+                                dates
+                            ) : (
+                                <time datetime={data.start.toISOString()}>{dates}</time>
+                            )}
+                        </p>
+                        <div class="journey-fade mt-2 md:mt-0">
+                            <h3 class="journey-title font-serif text-4xl font-normal leading-[1.1] tracking-normal text-white">
+                                {data.role}
+                            </h3>
+                            <p class="mt-2 flex items-center gap-2 font-display text-sm leading-5 text-slate-400">
+                                {/* decorative: the company name sits right beside it */}
+                                {data.logo && (
+                                    <Image
+                                        src={data.logo}
+                                        alt=""
+                                        height={20}
+                                        densities={[1, 2, 3]}
+                                        class="h-5 w-auto shrink-0"
+                                    />
+                                )}
+                                {data.company}
+                                {data.location && ` · ${data.location}`}
+                            </p>
+                            <p class="mt-4 max-w-[60ch] text-lg text-slate-300">
+                                {parseSummary(data.summary).map((part) =>
+                                    "url" in part ? (
+                                        <a
+                                            href={part.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            class="rounded-xs text-primary underline decoration-primary/40 underline-offset-4 transition-colors hover:decoration-primary focus-visible:ring-3 focus-visible:outline-none"
+                                        >{part.label}</a>
+                                    ) : (
+                                        part.text
+                                    ),
+                                )}
+                            </p>
+                            {data.tags.length > 0 && (
+                                <ul aria-label="Technologies" class="mt-5 flex list-none flex-wrap gap-2">
+                                    {data.tags.map((tag) => (
+                                        <li class="rounded-sm bg-[#1b212d] px-2 py-1 font-display text-xs text-slate-400">
+                                            {tag.id}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </li>
+                );
+            })
+        }
+    </ol>
+    <span data-tip aria-hidden="true" class="journey-tip"></span>
+</div>
+
+{
+    import.meta.env.DEV && (
+        <template id="journey-variant-switch">
+            <div role="group" aria-label="Journey timeline variant" class="flex items-center gap-1 px-3 py-1.5">
+                <span class="pr-1 text-slate-400">Journey</span>
+                {(["static", "scroll"] as const).map((variant) => (
+                    <button
+                        type="button"
+                        data-journey-variant={variant}
+                        aria-pressed="false"
+                        class="rounded-md px-2 py-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none aria-pressed:bg-slate-800 aria-pressed:text-primary"
+                    >
+                        {variant}
+                    </button>
+                ))}
+            </div>
+        </template>
+    )
+}
+
+<script>
+    type Variant = "static" | "scroll";
+    let cleanup: (() => void) | undefined;
+
+    const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
+
+    /** Drives the scroll variant from a reading line at the viewport's centre. */
+    function attachScroll(root: HTMLElement, signal: AbortSignal) {
+        const items = [...root.querySelectorAll<HTMLElement>("[data-entry]")];
+        const dots = items.map((item) => item.querySelector<HTMLElement>("[data-dot]")!);
+        let frame = 0;
+
+        const update = () => {
+            frame = 0;
+            const line = innerHeight / 2;
+            const rootTop = root.getBoundingClientRect().top;
+            const centers = dots.map((dot) => {
+                const rect = dot.getBoundingClientRect();
+                return rect.top + rect.height / 2;
+            });
+            items.forEach((item, i) => {
+                item.toggleAttribute("data-reached", centers[i] <= line);
+                const next = centers[i + 1];
+                if (next !== undefined) {
+                    const fill = clamp01((line - centers[i]) / (next - centers[i]));
+                    item.style.setProperty("--seg-fill", `${fill}`);
+                }
+            });
+            const first = centers[0];
+            const last = centers[centers.length - 1];
+            const onRail = line > first && line < last;
+            root.style.setProperty("--tip-y", `${Math.min(Math.max(line, first), last) - rootTop}px`);
+            root.style.setProperty("--tip-on", onRail ? "1" : "0");
+        };
+        const schedule = () => {
+            if (!frame) frame = requestAnimationFrame(update);
+        };
+
+        root.dataset.ready = "";
+        update();
+        addEventListener("scroll", schedule, { passive: true, signal });
+        addEventListener("resize", schedule, { signal });
+        signal.addEventListener("abort", () => {
+            cancelAnimationFrame(frame);
+            delete root.dataset.ready;
+            root.style.removeProperty("--tip-y");
+            root.style.removeProperty("--tip-on");
+            for (const item of items) {
+                item.removeAttribute("data-reached");
+                item.style.removeProperty("--seg-fill");
+            }
+        });
+    }
+
+    function attach(root: HTMLElement) {
+        let variantController: AbortController | undefined;
+        const setVariant = (variant: Variant) => {
+            variantController?.abort();
+            variantController = new AbortController();
+            root.dataset.variant = variant;
+            if (variant === "scroll") attachScroll(root, variantController.signal);
+        };
+
+        let devCleanup: (() => void) | undefined;
+        if (import.meta.env.DEV) {
+            const param = new URLSearchParams(location.search).get("journey");
+            if (param === "static" || param === "scroll") root.dataset.variant = param;
+
+            // dev toolbar switcher (FontToolbar.astro's slot); removed on page swaps since the
+            // toolbar persists across them
+            const slot = document.getElementById("dev-toolbar-slot");
+            const template = document.querySelector<HTMLTemplateElement>("#journey-variant-switch");
+            if (slot && template) {
+                const nodes = [...template.content.cloneNode(true).childNodes];
+                slot.append(...nodes);
+                const buttons = nodes.flatMap((node) =>
+                    node instanceof HTMLElement
+                        ? [...node.querySelectorAll<HTMLButtonElement>("[data-journey-variant]")]
+                        : [],
+                );
+                const sync = () => {
+                    for (const button of buttons)
+                        button.setAttribute(
+                            "aria-pressed",
+                            `${button.dataset.journeyVariant === root.dataset.variant}`,
+                        );
+                };
+                for (const button of buttons)
+                    button.addEventListener("click", () => {
+                        const variant = button.dataset.journeyVariant as Variant;
+                        setVariant(variant);
+                        sync();
+                        const url = new URL(location.href);
+                        url.searchParams.set("journey", variant);
+                        history.replaceState(history.state, "", url);
+                    });
+                sync();
+                devCleanup = () => {
+                    for (const node of nodes) node.parentNode?.removeChild(node);
+                };
+            }
+        }
+
+        setVariant(root.dataset.variant as Variant);
+        return () => {
+            variantController?.abort();
+            devCleanup?.();
+        };
+    }
+
+    document.addEventListener("astro:page-load", () => {
+        cleanup?.();
+        const root = document.querySelector<HTMLElement>("[data-journey-timeline]");
+        cleanup = root ? attach(root) : undefined;
+    });
+    document.addEventListener("astro:before-swap", () => {
+        cleanup?.();
+        cleanup = undefined;
+    });
+</script>
+
+<style>
+    .journey-timeline {
+        /* rail position (from the entries' left edge) and each dot's height within its entry: next
+           to the date on mobile, next to the title's first line from md */
+        --rail-x: 7px;
+        --dot-y: 0.625rem;
+        --rail: color-mix(in oklab, var(--color-white) 15%, transparent);
+        --dot-ring: color-mix(in oklab, var(--color-white) 30%, transparent);
+    }
+
+    @media (width >= 48rem) {
+        .journey-timeline {
+            /* centred in the gap between the 9rem date column and the content (gap-x-16) */
+            --rail-x: 11rem;
+            /* half the title's line box: text-4xl (2.25rem) at leading 1.1 */
+            --dot-y: 1.2375rem;
+        }
+    }
+
+    /* rail segment from this entry's dot to the next one's; ::after is its primary fill */
+    .journey-entry:not(:last-child)::before,
+    .journey-entry:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        left: calc(var(--rail-x) - 0.5px);
+        top: var(--dot-y);
+        height: 100%;
+        border-left: 1px solid var(--rail);
+    }
+
+    .journey-entry[data-before-future]::before,
+    .journey-entry[data-before-future]::after {
+        border-left-style: dashed;
+    }
+
+    .journey-entry:not(:last-child)::after {
+        border-left-color: var(--color-primary);
+        clip-path: inset(0 0 calc((1 - var(--seg-fill, 0)) * 100%) 0);
+        opacity: 0;
+    }
+
+    .journey-dot {
+        position: absolute;
+        z-index: 1;
+        left: var(--rail-x);
+        top: var(--dot-y);
+        width: 15px;
+        height: 15px;
+        translate: -50% -50%;
+        border: 1px solid var(--dot-ring);
+        border-radius: 9999px;
+        background: var(--color-secondary);
+        transition:
+            background-color 0.4s,
+            border-color 0.4s,
+            box-shadow 0.4s;
+    }
+
+    .journey-entry[data-future] .journey-dot {
+        border-style: dashed;
+    }
+
+    .journey-tip {
+        position: absolute;
+        z-index: 2;
+        left: var(--rail-x);
+        top: var(--tip-y, 0);
+        width: 7px;
+        height: 7px;
+        translate: -50% -50%;
+        border-radius: 9999px;
+        background: var(--color-primary);
+        box-shadow: 0 0 14px 3px color-mix(in oklab, var(--color-primary) 55%, transparent);
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .journey-fade,
+    .journey-title {
+        transition:
+            opacity 0.5s var(--ease-in-cubic),
+            color 0.4s;
+    }
+
+    /* static: the current role is marked */
+    [data-variant="static"] [data-current] .journey-dot {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    [data-variant="static"] [data-current] .journey-title {
+        color: var(--color-primary);
+    }
+
+    /* scroll (once its script is running, else it looks static): fill, tip, and entries that
+       light up as the reading line reaches them */
+    [data-variant="scroll"][data-ready] .journey-entry::after {
+        opacity: 1;
+    }
+
+    [data-variant="scroll"][data-ready] .journey-tip {
+        opacity: var(--tip-on, 0);
+    }
+
+    [data-variant="scroll"][data-ready] .journey-entry:not([data-reached]) .journey-fade {
+        opacity: 0.35;
+    }
+
+    [data-variant="scroll"][data-ready] [data-reached] .journey-dot {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    [data-variant="scroll"][data-ready] [data-reached][data-future] .journey-dot {
+        background: var(--color-secondary);
+    }
+
+    [data-variant="scroll"][data-ready] [data-reached][data-current] .journey-dot {
+        box-shadow: 0 0 0 5px color-mix(in oklab, var(--color-primary) 20%, transparent);
+    }
+
+    [data-variant="scroll"][data-ready] [data-reached][data-current] .journey-title {
+        color: var(--color-primary);
+    }
+
+    /* scroll-linked state stays; only the fades go */
+    @media (prefers-reduced-motion: reduce) {
+        .journey-dot,
+        .journey-fade,
+        .journey-title {
+            transition: none;
+        }
+    }
+
+    /* the static look before the scroll script runs (or without JS) */
+    [data-variant="scroll"]:not([data-ready]) [data-current] .journey-dot {
+        background: var(--color-primary);
+        border-color: var(--color-primary);
+    }
+
+    [data-variant="scroll"]:not([data-ready]) [data-current] .journey-title {
+        color: var(--color-primary);
+    }
+</style>

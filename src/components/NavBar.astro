@@ -6,25 +6,19 @@ const mobileLink = "place-items-start text-4xl py-3";
 ---
 
 <header
-    class:list={[
-        "h-20 grid sticky top-0 z-50",
-        "grid-cols-1 px-8 sm:px-20 md:px-0",
-        "md:grid-cols-[1fr_var(--content-container-md)_1fr] lg:grid-cols-[1fr_var(--content-container-lg)_1fr]",
-        "xl:grid-cols-[1fr_var(--content-container-xl)_1fr] 2xl:grid-cols-[1fr_var(--content-container-2xl)_1fr]",
-    ]}
+    class="h-20 sticky top-0 z-50 content-grid"
 >
     <nav class="peer md:col-start-2 flex justify-between items-center z-50">
-        <a href="/" aria-label="return to home page">
+        <a href="/" aria-label="return to home page" class="nav-in-left">
             <Logo class="w-16 md:w-18 h-16 md:h-18" aria-label="logo, spells out f-a-v-i, period" />
         </a>
         <div>
-            <div class="hidden md:flex justify-evenly items-center space-x-4 md:space-x-8">
+            <div class="nav-in-links hidden md:flex justify-evenly items-center space-x-4 md:space-x-8">
                 <NavLink href="/stuff">stuff.</NavLink>
-                <NavLink href="/contact">contact.</NavLink>
             </div>
         </div>
         <label
-            class="md:hidden grid *:col-start-1 *:row-start-1 px-1 text-primary text-4xl cursor-pointer rounded-md has-focus-visible:ring-3"
+            class="nav-in-right md:hidden grid *:col-start-1 *:row-start-1 px-1 text-primary text-4xl cursor-pointer rounded-md has-focus-visible:ring-3"
         >
             <input id="menu" type="checkbox" aria-label="Toggle menu" class="peer sr-only" />
             <i
@@ -49,7 +43,6 @@ const mobileLink = "place-items-start text-4xl py-3";
     >
         <NavLink href="/#about" class={mobileLink}>about me.</NavLink>
         <NavLink href="/stuff" class={mobileLink}>stuff.</NavLink>
-        <NavLink href="/contact" class={mobileLink}>contact.</NavLink>
     </nav>
     <!-- no grid placement: an abspos grid child with one uses its grid area (inside the header padding) as containing block -->
     <div class="backdrop"></div>
@@ -82,6 +75,114 @@ const mobileLink = "place-items-start text-4xl py-3";
         observer.observe(header);
     });
 
+    // A page can hold the nav's entrance (it sets --nav-play: paused). Release it on the first
+    // scroll, or straight away when the page is already scrolled (reload part-way down, /#about),
+    // or when keyboard focus moves into the still-hidden nav, or after data-nav-release-ms on the
+    // page's data-nav-hero section (the home page: once the hero heading has finished). The inline
+    // style beats the page's :root rule; ClientRouter resets <html>'s attributes on navigation, but
+    // by then data-nav-entered (below) has switched the animation off anyway.
+    document.addEventListener("astro:page-load", () => {
+        const root = document.documentElement;
+        if (getComputedStyle(root).getPropertyValue("--nav-play").trim() !== "paused") return;
+
+        const controller = new AbortController();
+        const release = () => {
+            root.style.setProperty("--nav-play", "running");
+            controller.abort();
+        };
+        if (scrollY > 0) return release();
+
+        const { signal } = controller;
+        const hold = Number(
+            document.querySelector<HTMLElement>("[data-nav-hero]")?.dataset.navReleaseMs,
+        );
+        if (hold >= 0) {
+            const timer = setTimeout(release, hold);
+            signal.addEventListener("abort", () => clearTimeout(timer));
+        }
+        addEventListener("scroll", release, { passive: true, once: true, signal });
+        document.querySelector("header")?.addEventListener("focusin", release, { once: true, signal });
+        // a navigation away before scrolling drops the listeners
+        document.addEventListener("astro:before-swap", () => controller.abort(), { once: true, signal });
+    });
+
+    // On a page with a data-nav-hero section (the home page's hero), the header shows:
+    // - while at least half of the hero is in view: always
+    // - below that: hidden while scrolling down; shown again on scrolling back up (past a small
+    //   dead zone, so trackpad jitter doesn't flicker it) or, with a mouse, on moving the pointer
+    //   to the top of the window
+    // CSS keeps it shown regardless while it's hovered, has keyboard focus or its mobile menu is open.
+    let cleanupAutoHide: (() => void) | undefined;
+    document.addEventListener("astro:page-load", () => {
+        cleanupAutoHide?.();
+        cleanupAutoHide = undefined;
+        const header = document.querySelector("header");
+        const hero = document.querySelector("[data-nav-hero]");
+        if (!header || !hero) return;
+
+        /** px of scrolling one way before the header reacts */
+        const DEAD_ZONE = 10;
+        /** px from the top of the window in which the mouse brings the header back */
+        const TOP_ZONE = 80;
+        let heroInView = true;
+        let revealed = false;
+        let lastY = scrollY;
+        /** px scrolled in the current direction: negative is up */
+        let travel = 0;
+        const sync = () => header.toggleAttribute("data-hidden", !heroInView && !revealed);
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                heroInView = entry.intersectionRatio >= 0.5;
+                // back on the hero: a later scroll down past it starts from hidden
+                if (heroInView) revealed = false;
+                sync();
+            },
+            { threshold: 0.5 },
+        );
+        observer.observe(hero);
+
+        const controller = new AbortController();
+        const { signal } = controller;
+        addEventListener(
+            "scroll",
+            () => {
+                const delta = scrollY - lastY;
+                lastY = scrollY;
+                if (!delta) return;
+                travel = Math.sign(delta) === Math.sign(travel) ? travel + delta : delta;
+                if (travel <= -DEAD_ZONE) revealed = true;
+                else if (travel >= DEAD_ZONE) revealed = false;
+                sync();
+            },
+            { passive: true, signal },
+        );
+        const finePointer = matchMedia("(hover: hover) and (pointer: fine)");
+        addEventListener(
+            "pointermove",
+            e => {
+                if (revealed || e.pointerType !== "mouse" || !finePointer.matches) return;
+                if (e.clientY > TOP_ZONE) return;
+                revealed = true;
+                sync();
+            },
+            { passive: true, signal },
+        );
+
+        cleanupAutoHide = () => {
+            observer.disconnect();
+            controller.abort();
+            header.removeAttribute("data-hidden");
+        };
+    });
+
+    // The nav enters (logo from the left, links from the right) only on a full page load. ClientRouter
+    // replaces the header on every navigation, which would replay the animation, so mark the incoming
+    // page as already entered; ClientRouter copies <html> attributes over during the swap.
+    document.addEventListener("astro:before-swap", e => {
+        e.newDocument.documentElement.dataset.navEntered = "";
+    });
+
     // Escape closes the mobile menu (registered once; the script only runs once)
     document.addEventListener("keydown", e => {
         const menu = document.querySelector<HTMLInputElement>("#menu");
@@ -93,6 +194,70 @@ const mobileLink = "place-items-start text-4xl py-3";
 </script>
 
 <style>
+    /* hidden below the hero while scrolling down (see the script): fades out while drifting up a
+       little (and fades back in drifting down), out of the way of the pointer. Never while it's
+       hovered, has keyboard focus or has its mobile menu open */
+    header {
+        /* the fade is shorter than the drift, and the drift on a gentler curve: the header is fully
+           transparent while it's still visibly moving, rather than lingering faintly after it has
+           stopped */
+        transition:
+            translate 0.5s ease-out,
+            opacity 0.3s ease-out;
+    }
+
+    header[data-hidden]:not(:focus-within, :hover, :has(#menu:checked)) {
+        translate: 0 -1.5rem;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        header {
+            transition: none;
+        }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        /* --nav-play lets a page hold the entrance on its first (hidden) frame: a page sets it to
+           paused, and the script below flips it to running on the first scroll */
+        .nav-in-left {
+            animation: nav-in-left 0.7s var(--ease-in-cubic) both;
+            animation-play-state: var(--nav-play, running);
+        }
+
+        .nav-in-right,
+        .nav-in-links > :global(a) {
+            animation: nav-in-right 0.7s var(--ease-in-cubic) both;
+            animation-play-state: var(--nav-play, running);
+        }
+
+        .nav-in-links > :global(a:nth-child(1)) {
+            animation-delay: 80ms;
+        }
+
+        /* only on a full page load; see the astro:before-swap listener */
+        :global(:root[data-nav-entered]) .nav-in-left,
+        :global(:root[data-nav-entered]) .nav-in-right,
+        :global(:root[data-nav-entered]) .nav-in-links > :global(a) {
+            animation: none;
+        }
+    }
+
+    @keyframes nav-in-left {
+        from {
+            opacity: 0;
+            transform: translateX(-1.5rem);
+        }
+    }
+
+    @keyframes nav-in-right {
+        from {
+            opacity: 0;
+            transform: translateX(1.5rem);
+        }
+    }
+
     @supports (backdrop-filter: blur(16px)) or (-webkit-backdrop-filter: blur(16px)) {
         .backdrop {
             position: absolute;

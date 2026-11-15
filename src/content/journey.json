@@ -1,0 +1,23 @@
+[
+    {
+        "id": "placeholder-intern",
+        "role": "developer intern.",
+        "company": "GovTech Singapore",
+        "logo": "../assets/journey/govtech.png",
+        "location": "Singapore",
+        "start": "2023-04-01",
+        "end": "2024-03-31",
+        "summary": "At GovTech, I worked on the website, [LifeSG](https://www.life.gov.sg), and helped create an internal form builder tool for other developers in the team.",
+        "tags": ["singapore", "govtech"]
+    },
+    {
+        "id": "placeholder-next",
+        "role": "graduating.",
+        "company": "SMU",
+        "logo": "../assets/journey/smu.svg",
+        "start": "2027-06-01",
+        "future": true,
+        "summary": "I currently study at SMU, pursuing a degree in Information Systems.",
+        "tags": ["uni"]
+    }
+]

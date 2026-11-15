@@ -1,0 +1,294 @@
+---
+/**
+ * Dev-only toolbar for trying display serifs. Picking a font swaps the `--font-serif` theme
+ * variable, so everything using `font-serif` changes at once. Rendered from BaseLayout only when
+ * import.meta.env.DEV, so it never ships.
+ *
+ * The list is a custom listbox rather than a native <select>: a native popup is drawn outside the
+ * page and gets cramped (it can't open upwards from a toolbar pinned to the bottom, and can't show
+ * each option in its own font).
+ *
+ * Collapsed to a small wrench button; the panel of controls (stacked, one per row) opens above it on
+ * hover or keyboard focus, stays open while the font list is open, and clicking the button pins it
+ * open (for touch). Other components add their own rows through #dev-toolbar-slot.
+ */
+type Source = "local" | "Fontshare" | "Google Fonts";
+type Font = { family: string; source: Source; css?: string };
+
+const google = (family: string) =>
+	`https://fonts.googleapis.com/css2?family=${family.replaceAll(" ", "+")}:wght@400&display=swap`;
+const fontshare = (slug: string) => `https://api.fontshare.com/v2/css?f[]=${slug}@400&display=swap`;
+
+const FONTS: Font[] = [
+	{ family: "Geist Serif", source: "local" },
+	{ family: "Zodiak", source: "Fontshare", css: fontshare("zodiak") },
+	{ family: "Gambetta", source: "Fontshare", css: fontshare("gambetta") },
+	{ family: "Boska", source: "Fontshare", css: fontshare("boska") },
+	{ family: "Erode", source: "Fontshare", css: fontshare("erode") },
+	{ family: "Sentient", source: "Fontshare", css: fontshare("sentient") },
+	{ family: "Instrument Serif", source: "Google Fonts", css: google("Instrument Serif") },
+	{ family: "Playfair Display", source: "Google Fonts", css: google("Playfair Display") },
+	{ family: "Fraunces", source: "Google Fonts", css: google("Fraunces") },
+	{ family: "DM Serif Display", source: "Google Fonts", css: google("DM Serif Display") },
+	{ family: "Cormorant", source: "Google Fonts", css: google("Cormorant") },
+	{ family: "Bodoni Moda", source: "Google Fonts", css: google("Bodoni Moda") },
+	{ family: "Newsreader", source: "Google Fonts", css: google("Newsreader") },
+	{ family: "Gloock", source: "Google Fonts", css: google("Gloock") },
+];
+
+const groups: Source[] = ["local", "Fontshare", "Google Fonts"];
+---
+
+<div id="font-toolbar" transition:persist class="dev-toolbar fixed bottom-4 left-4 z-[60] font-body text-sm text-slate-200">
+	<!-- pb-2: a transparent bridge to the button, so moving the pointer up doesn't close the panel -->
+	<div class="dev-toolbar-panel absolute bottom-full left-0 pb-2">
+	<div class="w-max max-w-[calc(100vw-2rem)] rounded-lg border border-slate-700 bg-slate-950/90 shadow-lg backdrop-blur">
+	<div class="flex items-center gap-2 px-3 py-1.5">
+	<span id="font-toolbar-label" class="pl-1.5 text-slate-400">Display font</span>
+
+	<div class="relative">
+		<button
+			type="button"
+			data-trigger
+			aria-haspopup="listbox"
+			aria-expanded="false"
+			aria-labelledby="font-toolbar-label font-toolbar-value"
+			class="flex w-48 items-center justify-between gap-2 rounded-md font-body border border-slate-700 bg-slate-900 px-2 py-1 text-left text-primary hover:border-slate-500 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none"
+		>
+			<span id="font-toolbar-value" data-value>Geist Serif</span>
+			<i class="ph-bold ph-caret-up text-slate-400" aria-hidden="true"></i>
+		</button>
+
+		<ul
+			data-listbox
+			role="listbox"
+			tabindex="-1"
+			aria-labelledby="font-toolbar-label"
+			hidden
+			class="absolute bottom-full left-0 mb-2 max-h-[60vh] w-64 overflow-y-auto overscroll-contain rounded-lg border border-slate-700 bg-slate-950 p-1 shadow-xl focus:outline-none"
+		>
+			{
+				groups.map(group => (
+					<li role="presentation">
+						<div class="px-2 pt-2 pb-1 text-xs tracking-wide text-slate-500 uppercase">{group}</div>
+						<ul role="group" aria-label={group}>
+							{FONTS.filter(f => f.source === group).map(f => (
+								<li
+									role="option"
+									id={`font-option-${f.family.replaceAll(" ", "-").toLowerCase()}`}
+									aria-selected="false"
+									data-family={f.family}
+									data-css={f.css}
+									class="cursor-pointer rounded-md px-2 py-1.5 text-lg text-slate-200 data-active:bg-slate-800 aria-selected:text-primary"
+									style={`font-family: "${f.family}", ui-serif, Georgia, serif`}
+								>
+									{f.family}
+								</li>
+							))}
+						</ul>
+					</li>
+				))
+			}
+		</ul>
+	</div>
+
+	<span data-status class="min-w-16 text-xs text-slate-400" aria-live="polite"></span>
+	</div>
+
+	<!-- other dev controls (CursorFollow, JourneyTimeline) add their rows in here -->
+	<div id="dev-toolbar-slot" class="flex flex-col divide-y divide-slate-700 border-t border-slate-700 empty:hidden"></div>
+	</div>
+	</div>
+
+	<button
+		type="button"
+		data-dev-toggle
+		aria-expanded="false"
+		aria-label="Dev tools (click to keep open)"
+		class="grid size-9 place-items-center rounded-lg border border-slate-700 bg-slate-950/90 text-slate-400 shadow-lg backdrop-blur hover:text-slate-200 focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none aria-expanded:text-primary"
+	>
+		<i class="ph-bold ph-wrench" aria-hidden="true"></i>
+	</button>
+</div>
+
+<style>
+	.dev-toolbar-panel {
+		opacity: 0;
+		translate: 0 4px;
+		visibility: hidden;
+		/* a short grace period before hiding, so a slightly wobbly pointer doesn't close it */
+		transition:
+			opacity 0.15s 0.15s,
+			translate 0.15s 0.15s,
+			visibility 0s 0.3s;
+	}
+
+	.dev-toolbar:hover .dev-toolbar-panel,
+	.dev-toolbar:focus-within .dev-toolbar-panel,
+	.dev-toolbar:has([data-dev-toggle][aria-expanded="true"]) .dev-toolbar-panel,
+	.dev-toolbar:has([data-trigger][aria-expanded="true"]) .dev-toolbar-panel {
+		opacity: 1;
+		translate: 0;
+		visibility: visible;
+		transition:
+			opacity 0.15s,
+			translate 0.15s,
+			visibility 0s;
+	}
+</style>
+
+<script>
+	const STORAGE_KEY = "dev:font-serif";
+
+	const el = () => {
+		const root = document.getElementById("font-toolbar");
+		if (!root) return null;
+		return {
+			root,
+			trigger: root.querySelector<HTMLButtonElement>("[data-trigger]")!,
+			value: root.querySelector<HTMLElement>("[data-value]")!,
+			listbox: root.querySelector<HTMLUListElement>("[data-listbox]")!,
+			status: root.querySelector<HTMLElement>("[data-status]")!,
+			options: [...root.querySelectorAll<HTMLLIElement>("[role=option]")],
+		};
+	};
+
+	const loadStylesheet = (href?: string) => {
+		if (!href || document.head.querySelector(`link[data-font-preview="${CSS.escape(href)}"]`)) return;
+		const link = document.createElement("link");
+		link.rel = "stylesheet";
+		link.href = href;
+		link.dataset.fontPreview = href;
+		document.head.append(link);
+	};
+
+	const select = async (option: HTMLLIElement) => {
+		const ui = el();
+		if (!ui) return;
+		const family = option.dataset.family!;
+
+		ui.options.forEach(o => o.setAttribute("aria-selected", String(o === option)));
+		ui.value.textContent = family;
+		ui.status.textContent = "loading…";
+		try {
+			localStorage.setItem(STORAGE_KEY, family);
+		} catch {}
+
+		loadStylesheet(option.dataset.css);
+		document.documentElement.style.setProperty("--font-serif", `"${family}", ui-serif, Georgia, serif`);
+
+		let ok = true;
+		try {
+			await document.fonts.load(`400 1em "${family}"`);
+			ok = document.fonts.check(`400 1em "${family}"`);
+		} catch {
+			ok = false;
+		}
+		// ignore a stale result if the selection changed while this one was loading
+		if (ui.value.textContent !== family) return;
+		ui.status.textContent = ok ? "" : "failed to load";
+	};
+
+	// --- listbox behaviour ---
+
+	const setActive = (option: HTMLLIElement | undefined) => {
+		const ui = el();
+		if (!ui || !option) return;
+		ui.options.forEach(o => o.toggleAttribute("data-active", o === option));
+		ui.listbox.setAttribute("aria-activedescendant", option.id);
+		option.scrollIntoView({ block: "nearest" });
+	};
+
+	const open = () => {
+		const ui = el();
+		if (!ui) return;
+		ui.options.forEach(o => loadStylesheet(o.dataset.css)); // so every option previews in its own font
+		ui.listbox.hidden = false;
+		ui.trigger.setAttribute("aria-expanded", "true");
+		ui.listbox.focus();
+		setActive(ui.options.find(o => o.getAttribute("aria-selected") === "true") ?? ui.options[0]);
+	};
+
+	const close = (refocus = true) => {
+		const ui = el();
+		if (!ui || ui.listbox.hidden) return;
+		ui.listbox.hidden = true;
+		ui.trigger.setAttribute("aria-expanded", "false");
+		if (refocus) ui.trigger.focus();
+	};
+
+	document.addEventListener("click", e => {
+		const ui = el();
+		if (!ui) return;
+		const target = e.target as Element;
+
+		if (target.closest("#font-toolbar [data-trigger]")) {
+			ui.listbox.hidden ? open() : close();
+			return;
+		}
+		const option = target.closest<HTMLLIElement>("#font-toolbar [role=option]");
+		if (option) {
+			select(option);
+			close();
+			return;
+		}
+		if (!target.closest("#font-toolbar")) close(false);
+	});
+
+	document.addEventListener("mousemove", e => {
+		const option = (e.target as Element).closest<HTMLLIElement>("#font-toolbar [role=option]");
+		if (option) setActive(option);
+	});
+
+	document.addEventListener("keydown", e => {
+		const ui = el();
+		if (!ui || ui.listbox.hidden || !ui.root.contains(document.activeElement)) return;
+
+		const current = ui.options.findIndex(o => o.hasAttribute("data-active"));
+		const move = (index: number) => setActive(ui.options[Math.max(0, Math.min(ui.options.length - 1, index))]);
+
+		switch (e.key) {
+			case "ArrowDown":
+				move(current + 1);
+				break;
+			case "ArrowUp":
+				move(current - 1);
+				break;
+			case "Home":
+				move(0);
+				break;
+			case "End":
+				move(ui.options.length - 1);
+				break;
+			case "Enter":
+			case " ":
+				if (current >= 0) select(ui.options[current]);
+				close();
+				break;
+			case "Escape":
+			case "Tab":
+				close(e.key === "Escape");
+				return;
+			default:
+				return;
+		}
+		e.preventDefault();
+	});
+
+	// restore the last pick; re-applied per page because ClientRouter replaces <html>'s attributes
+	// (and with them the inline variable) on every navigation
+	document.addEventListener("click", e => {
+		const toggle = (e.target as Element).closest?.("[data-dev-toggle]");
+		if (toggle) toggle.setAttribute("aria-expanded", `${toggle.getAttribute("aria-expanded") !== "true"}`);
+	});
+
+	document.addEventListener("astro:page-load", () => {
+		const ui = el();
+		if (!ui) return;
+		let saved: string | null = null;
+		try {
+			saved = localStorage.getItem(STORAGE_KEY);
+		} catch {}
+		select(ui.options.find(o => o.dataset.family === saved) ?? ui.options[0]);
+	});
+</script>

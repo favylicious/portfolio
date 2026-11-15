@@ -1,81 +1,431 @@
 ---
-import TextCarousel from "@components/TextCarousel.astro";
 import BaseLayout from "@layouts/BaseLayout.astro";
+import AboutAccordion from "@components/AboutAccordion";
+import JourneyTimeline from "@components/JourneyTimeline.astro";
+import { getProjects } from "../content.config";
+import { byDateAsc, formatShortDate } from "@util/date";
+import { ArrowUpRight } from "lucide-react";
+
+const projects = (await getProjects())
+    .sort((a, b) => byDateAsc(b.data.pubDate, a.data.pubDate))
+    .slice(0, 9);
+const projectSlots = Array.from({ length: 9 }, (_, index) => projects[index]);
+
+// Hero heading, revealed one character at a time. Words are kept together (and "i'm favian,"
+// joined by a non-breaking space) so the heading wraps exactly as plain text would.
+const HEADING = "hey. i'm\u00a0favian.";
+const CHAR_STAGGER_MS = 45;
+const PAUSE_AFTER_FIRST_WORD_MS = 500;
+const CHAR_DURATION_MS = 600;
+
+let charIndex = 0;
+const headingWords = HEADING.split(" ").map((word, wordIndex) =>
+    [...word].map((char) => ({
+        char,
+        delay:
+            charIndex++ * CHAR_STAGGER_MS +
+            (wordIndex > 0 ? PAUSE_AFTER_FIRST_WORD_MS : 0),
+    })),
+);
+// when the last character has finished animating in: the navbar enters then (unless the visitor
+// scrolls first), and the scroll cue a second later
+const HEADING_DONE_MS =
+    (charIndex - 1) * CHAR_STAGGER_MS + PAUSE_AFTER_FIRST_WORD_MS + CHAR_DURATION_MS;
+const SCROLL_CUE_DELAY_MS = HEADING_DONE_MS + 1000;
 ---
 
 <BaseLayout title="Portfolio">
-	<section class="container justify-center place-items-center">
-		<div class="w-full">
-			<h1
-				class="text-[2.5rem] sm:text-5xl md:text-6xl lg:text-7xl sm:mb-1 md:mb-1.5 lg:mb-3 text-primary text-start font-body font-extrabold"
-			>
-				hey. i'm&nbsp;favian,
-			</h1>
-			<TextCarousel />
-		</div>
-		<div class="self-center absolute bottom-8 -space-y-6">
-			<i class={`fa-solid fa-chevron-down block text-slate-700 text-4xl animate-pulse`}></i>
-		</div>
-	</section>
-	<section
-		class="container lg:grid-cols-[1fr_65ch_1fr] xl:grid-cols-[1fr_76ch_1fr] place-items-center my-24 gap-y-8"
-	>
-		<h1 id="about" class="mt-8 mb-4 place-self-start scroll-mt-28">About Me</h1>
-		<p>
-			<span class="font-bold italic">Inspect Element.</span> As a secondary school student bored in the computer
-			lab, I was fidgeting around a website and came across an option named 'Inspect Element'. Curious, I
-			clicked it. I was immediately shown the intricate inner workings of the website and my mind was blown,
-			completely fascinated by the power and customisibility I possessed. Since then, I've never looked back.
-		</p>
-
-		<p>
-			In my free time, I play various musical instruments, from guitars to pianos and even saxophone (to
-			an extent). Recently, I've been jamming with a friend and we plan to start a small band for gigs at
-			open mic nights.
-		</p>
-
-		<p>
-			If I <em>really</em> do have a lot of free time, I like to spend it playing games. I'm thankful for
-			growing up the great games like Minecraft. Not old enough to be raised alongside Doom 64 though!
-		</p>
-
-		<p>
-			I created this portfolio as a way to showcase the journey I've taken so far in my career. The
-			'projects' page contains some of my proudest work I've done up to now, with each post detailing an
-			overview of the project, overcoming simple-to-difficult roadblocks, and maybe even some cool facts
-			about the development process. I delve deep into the challenges I face to understand why they exist
-			on an atomic level, rather than slapping a band-aid solution from StackOverflow and calling it a
-			day.
-		</p>
-	</section>
+    <!-- hold the navbar's entrance until the visitor first scrolls (see NavBar.astro) -->
+    <style is:global>
+        :root {
+            --nav-play: paused;
+        }
+    </style>
+    <!-- large, faint, grainy blobs scattered down the page (grain-blobs.ts): a layer behind the
+         page, stretched to its height and filled in by the script. opacity-0: hidden from the
+         first paint; the script fades it in once the visitor scrolls (starting visible, it would
+         flash on load while the script faded it out) -->
+    <div
+        data-grain-blobs
+        aria-hidden="true"
+        class="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden overflow-hidden opacity-0 md:block"
+    >
+    </div>
+    <!-- on the navbar's grid (content-grid), so the heading starts where the navbar content does -->
+    <!-- data-nav-hero: the navbar always shows while this section is (mostly) in view, and enters
+         once its heading has finished (data-nav-release-ms); see NavBar.astro -->
+    <section
+        data-nav-hero
+        data-nav-release-ms={HEADING_DONE_MS}
+        class="content-grid relative min-h-screen -mt-20 pb-20 items-center"
+    >
+        <div class="md:col-start-2 w-full">
+            <h1
+                class="text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.15] text-primary text-start font-body font-extrabold"
+                aria-label={HEADING.replace("\u00a0", " ")}
+            >
+                {headingWords.map((word, i) => (
+                    <>
+                        {i > 0 && " "}
+                        <span
+                            class="inline-block whitespace-nowrap"
+                            aria-hidden="true"
+                        >
+                            {word.map(({ char, delay }) => (
+                                <span
+                                    class="hero-char"
+                                    style={`animation-delay: ${delay}ms; animation-duration: ${CHAR_DURATION_MS}ms`}
+                                >
+                                    {char}
+                                </span>
+                            ))}
+                        </span>
+                    </>
+                ))}
+            </h1>
+        </div>
+        <div
+            data-scroll-cue
+            class="scroll-cue absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
+            style={`animation-delay: ${SCROLL_CUE_DELAY_MS}ms`}
+            aria-hidden="true"
+        >
+            <span class="font-display text-xs tracking-[0.3em] text-slate-600">
+                SCROLL
+            </span>
+            <i
+                class="fa-solid fa-chevron-down block text-slate-700 text-[1.8rem] animate-pulse"
+            ></i>
+        </div>
+    </section>
+    <!-- on the navbar's grid (content-grid), so the content starts where the navbar content does -->
+    <!-- overflow-x-clip: the carousel slides out past the right edge when it hides -->
+    <section
+        id="about"
+        class="content-grid my-24 pb-20 scroll-mt-28 overflow-x-clip"
+    >
+        <!-- accordion + carousel row: one island, since the carousel follows the accordion's state -->
+        <div class="md:col-start-2 min-w-0">
+            <AboutAccordion client:visible />
+        </div>
+    </section>
+    <section
+        id="journey"
+        aria-labelledby="journey-heading"
+        class="content-grid mb-48 scroll-mt-28"
+    >
+        <h2
+            id="journey-heading"
+            class="md:col-start-2 font-serif text-7xl font-normal text-white"
+        >
+            journey.
+        </h2>
+        <div class="md:col-start-2 mt-16 min-w-0">
+            <JourneyTimeline />
+        </div>
+    </section>
+    <section
+        id="projects"
+        aria-labelledby="projects-heading"
+        class="mb-32 scroll-mt-28"
+    >
+        <div class="content-grid mb-10">
+            <h2
+                id="projects-heading"
+                class="md:col-start-2 font-serif text-7xl font-normal text-white"
+            >
+                projects.
+            </h2>
+        </div>
+        <div class="content-grid border-y border-white/15">
+            <ul
+                data-project-grid
+                class="project-grid md:col-start-2 grid min-w-0 grid-cols-1 gap-px border-x border-white/15 bg-white/15 sm:grid-cols-2 lg:grid-cols-3"
+            >
+                <!-- cursor glow canvas (dither-glow.ts): above the cells, below the cards' content;
+                     absolute, so it takes no grid cell, and hidden from the list's semantics -->
+                <li
+                    data-project-glow
+                    aria-hidden="true"
+                    role="presentation"
+                    class="pointer-events-none absolute inset-0 z-1"
+                ></li>
+                {projectSlots.map((project) => {
+                    const Card = project ? "a" : "div";
+                    const tags = project?.data.tags.map((tag) => tag.id) ?? [
+                        "typescript",
+                        "react",
+                        "tailwindcss",
+                    ];
+                    return (
+                        <li class="project-cell min-h-64 min-w-0 bg-secondary">
+                            {/* temporary: placeholder cards get a tab stop too, so Tab walks every
+                                cell row by row until real projects fill the grid */}
+                            <Card
+                                href={
+                                    project
+                                        ? `/projects/${encodeURIComponent(project.id)}`
+                                        : undefined
+                                }
+                                tabindex={project ? undefined : 0}
+                                class="project-card group flex h-full min-h-64 flex-col p-6 bg-(--project-card-bg) transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary motion-reduce:transition-none"
+                            >
+                                <div class="mb-6 flex items-start justify-between gap-4">
+                                    <h3 class="font-serif text-3xl font-normal tracking-normal text-(--project-title) transition-colors duration-200 motion-reduce:transition-none">
+                                        {project?.data.title ?? "Lorem ipsum."}
+                                    </h3>
+                                    <ArrowUpRight
+                                        aria-hidden="true"
+                                        className="size-6 shrink-0 text-(--project-title) translate-x-(--project-arrow-x) translate-y-(--project-arrow-y) transition-[color,translate] duration-200 motion-reduce:translate-none motion-reduce:transition-none"
+                                    />
+                                </div>
+                                <p class="mb-6 text-base text-(--project-description) transition-colors duration-200 motion-reduce:transition-none">
+                                    {project?.data.description ??
+                                        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}
+                                </p>
+                                <ul
+                                    aria-label="Technologies"
+                                    class="mt-auto flex flex-wrap gap-2"
+                                >
+                                    {tags.map((tag) => (
+                                        <li class="rounded-sm bg-(--project-badge-bg) px-2 py-1 font-display text-xs text-(--project-detail) transition-colors duration-200 motion-reduce:transition-none">
+                                            {tag}
+                                        </li>
+                                    ))}
+                                </ul>
+                                {project && (
+                                    <time
+                                        datetime={project.data.pubDate.toISOString()}
+                                        class="mt-6 font-display text-xs text-(--project-detail) transition-colors duration-200 motion-reduce:transition-none"
+                                    >
+                                        {formatShortDate(project.data.pubDate)}
+                                    </time>
+                                )}
+                            </Card>
+                        </li>
+                    );
+                })}
+            </ul>
+        </div>
+    </section>
 </BaseLayout>
 
-<!-- <script>
-	// fade in elements that come into screen
-	const elements = document.querySelectorAll(".fade-in");
-	const options = {
-		rootMargin: "0px",
-		threshold: 0.5,
-	};
+<script>
+    import { attachDitherReveal } from "@/lib/dither-reveal";
+    import { attachGrainBlobs } from "@/lib/grain-blobs";
+    import { attachProjectGridEffects } from "@/lib/project-grid-effects";
 
-	const observer = new IntersectionObserver((entries, observer) => {
-		entries.forEach(entry => {
-			if (!entry.isIntersecting) {
-				return;
-			} else {
-				entry.target.classList.add("animate-fade-in");
-				observer.unobserve(entry.target);
-			}
-		});
-	}, options);
+    /**
+     * The hero's scroll cue fades out once the page is scrolled, and comes back (after a pause,
+     * like its first appearance after the hero text) when the page returns to the top. Its first
+     * appearance is the CSS animation; these take over from it.
+     */
+    function attachScrollCue(cue: HTMLElement) {
+        const controller = new AbortController();
+        const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+        const easing =
+            getComputedStyle(cue).getPropertyValue("--ease-in-cubic").trim() || "ease";
+        let hidden = false;
+        let animation: Animation | undefined;
+        const sync = () => {
+            const next = scrollY > 4;
+            if (next === hidden) return;
+            hidden = next;
+            // from wherever it is now (it may still be waiting to appear, or mid-fade)
+            const from = getComputedStyle(cue).opacity;
+            animation?.cancel();
+            const instant = reducedMotion.matches;
+            animation = hidden
+                ? cue.animate([{ opacity: from }, { opacity: 0 }], {
+                      duration: instant ? 0 : 400,
+                      easing: "ease-out",
+                      fill: "forwards",
+                  })
+                : cue.animate(
+                      [
+                          { opacity: 0, transform: "translateY(-1rem)" },
+                          { opacity: 1, transform: "none" },
+                      ],
+                      {
+                          duration: instant ? 0 : 600,
+                          delay: instant ? 0 : 1000,
+                          easing,
+                          fill: "both",
+                      },
+                  );
+        };
+        addEventListener("scroll", sync, { passive: true, signal: controller.signal });
+        sync();
+        return () => {
+            controller.abort();
+            animation?.cancel();
+        };
+    }
 
-	elements.forEach(element => {
-		observer.observe(element);
-	});
-</script> -->
+    let cleanupBlobs: (() => void) | undefined;
+    document.addEventListener("astro:page-load", () => {
+        cleanupBlobs?.();
+        const field = document.querySelector<HTMLElement>("[data-grain-blobs]");
+        cleanupBlobs = field ? attachGrainBlobs(field) : undefined;
+    });
+
+    let cleanupCue: (() => void) | undefined;
+    document.addEventListener("astro:page-load", () => {
+        cleanupCue?.();
+        const cue = document.querySelector<HTMLElement>("[data-scroll-cue]");
+        cleanupCue = cue ? attachScrollCue(cue) : undefined;
+    });
+
+    let cleanup: (() => void) | undefined;
+    document.addEventListener("astro:page-load", () => {
+        cleanup?.();
+        const grid = document.querySelector<HTMLElement>("[data-project-grid]");
+        if (!grid) {
+            cleanup = undefined;
+            return;
+        }
+        const cleanupEffects = attachProjectGridEffects(
+            grid,
+            grid.querySelector<HTMLElement>("[data-project-glow]")!,
+        );
+        // the cards' contents dither in one after another the first time they scroll into view
+        // (the grid lines and cells are there from the start)
+        const cleanupReveal = attachDitherReveal(grid, [
+            ...grid.querySelectorAll<HTMLElement>(".project-card"),
+        ]);
+        cleanup = () => {
+            cleanupEffects();
+            cleanupReveal();
+        };
+    });
+    document.addEventListener("astro:before-swap", () => cleanup?.());
+</script>
 
 <style>
-	.fade-in {
-		opacity: 0;
-	}
+    .project-grid {
+        --project-title: var(--color-white);
+        --project-description: var(--color-slate-300);
+        --project-detail: var(--color-slate-400);
+        --project-badge-bg: #1b212d;
+        --project-card-bg: transparent;
+        --project-arrow-x: 0px;
+        --project-arrow-y: 0px;
+        /* the card's background colour, for the text halo below */
+        --project-halo: var(--color-secondary);
+        position: relative;
+        isolation: isolate;
+    }
+
+    .project-card > :global(*) {
+        position: relative;
+        z-index: 2;
+    }
+
+    /* A soft halo in the card's own background colour: it clears the dithered cursor glow from
+       around the letters (whose dots otherwise break up thin glyphs) and is invisible elsewhere.
+       Not on the tags, whose badges already sit on a solid background. */
+    .project-card {
+        /* stacked, so the halo is near-solid right around the glyphs and fades out wider */
+        text-shadow:
+            0 0 2px var(--project-halo),
+            0 0 4px var(--project-halo),
+            0 0 8px var(--project-halo),
+            0 0 12px var(--project-halo);
+    }
+
+    .project-card li {
+        text-shadow: none;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+        .project-grid,
+        .project-grid :global(*) {
+            cursor: none;
+        }
+
+        .project-grid[data-pointer-active] > .project-cell:not(:hover) {
+			--project-title: var(--color-slate-400);
+            --project-description: var(--color-slate-600);
+            --project-detail: var(--color-slate-600);
+            --project-badge-bg: #171d28;
+        }
+
+        .project-cell:hover {
+            --project-card-bg: color-mix(
+                in oklab,
+                var(--color-gray-800) 50%,
+                transparent
+            );
+            --project-title: var(--color-primary);
+            /* the hovered card's background, over the page */
+            --project-halo: color-mix(
+                in oklab,
+                var(--color-gray-800) 50%,
+                var(--color-secondary)
+            );
+            --project-arrow-x: var(--spacing);
+            --project-arrow-y: calc(var(--spacing) * -1);
+        }
+    }
+
+    /* gentle: a low overall strength, fading smoothly from the centre outwards so each blob
+       reads as a glow rather than a shape with an edge (global: the script creates them) */
+    :global(.grain-blob) {
+        opacity: 0.66;
+        mask-image: radial-gradient(circle closest-side, #000 0%, rgb(0 0 0 / 0.7) 18%, rgb(0 0 0 / 0.4) 38%, rgb(0 0 0 / 0.16) 60%, rgb(0 0 0 / 0.04) 82%, transparent 100%);
+    }
+
+    /* waiting for its dither reveal (see dither-reveal.ts) */
+    .project-card[data-dither-pending] {
+        opacity: 0;
+    }
+
+    .fade-in {
+        opacity: 0;
+    }
+
+    .hero-char {
+        display: inline-block;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .hero-char {
+            /* "both": stay hidden during the delay, stay shown afterwards */
+            animation: hero-char-in 0.6s var(--ease-in-cubic) both;
+        }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        .scroll-cue {
+            /* "both": hidden until the delay ends; the chevron's own pulse runs underneath */
+            animation: scroll-cue-in 0.6s var(--ease-in-cubic) both;
+        }
+    }
+
+    /* fades in while drifting down into place (the same drop as in attachScrollCue's return) */
+    @keyframes scroll-cue-in {
+        from {
+            opacity: 0;
+            transform: translateY(-1rem);
+        }
+
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+
+    @keyframes hero-char-in {
+        from {
+            opacity: 0;
+            transform: translateY(0.35em);
+            filter: blur(4px);
+        }
+
+        to {
+            opacity: 1;
+            transform: none;
+            filter: none;
+        }
+    }
 </style>

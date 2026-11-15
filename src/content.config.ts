@@ -59,9 +59,30 @@ const tags = defineCollection({
     }),
 });
 
+// Journey timeline (JourneyTimeline.astro). No `end` = the current entry; `future` = a planned entry on
+// the road ahead (drawn dashed, labelled "next").
+const journey = defineCollection({
+    loader: file("./src/content/journey.json"),
+    // logo: path relative to journey.json, e.g. "../assets/journey/govtech.png"
+    schema: ({ image }) => z.object({
+        id: z.string(),
+        role: z.string(),
+        company: z.string(),
+        logo: image().optional(),
+        location: z.string().optional(),
+        start: dateField,
+        end: dateField.optional(),
+        future: z.boolean().default(false),
+        // may contain inline links in Markdown form: "worked on [LifeSG](https://www.life.gov.sg)"
+        summary: z.string(),
+        tags: z.array(reference("tags")).default([]),
+    }),
+});
+
 export type BlogPost = CollectionEntry<"blog">;
 export type Project = CollectionEntry<"projects">;
 export type Tag = CollectionEntry<"tags">;
+export type Journey = CollectionEntry<"journey">;
 
 export const getProjects = async (options?: { withDraft: true }): Promise<Project[]> => {
     const withDraft = options?.withDraft;
@@ -90,4 +111,14 @@ export const getTags = async (): Promise<Tag[]> => {
     return tags;
 };
 
-export const collections = { blog, projects, tags };
+/** Oldest first, planned (future) entries last. */
+export const getJourney = async (): Promise<Journey[]> => {
+    const journey = await getCollection("journey");
+    return journey.sort(
+        (a, b) =>
+            Number(a.data.future) - Number(b.data.future) ||
+            a.data.start.getTime() - b.data.start.getTime(),
+    );
+};
+
+export const collections = { blog, projects, tags, journey };

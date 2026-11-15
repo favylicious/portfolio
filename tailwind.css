@@ -1,5 +1,9 @@
 @import "tailwindcss";
 @import "./src/styles/prose.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 @plugin "@tailwindcss/typography";
 
 @theme {
@@ -12,6 +16,8 @@
 
     --font-*: initial;
     --font-display: "JetBrains Mono", monospace;
+    /* Geist Serif ships a single Regular weight (display use only), so pair it with font-normal */
+    --font-serif: "Geist Serif", ui-serif, Georgia, serif;
     --font-body:
         "Satoshi Variable", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
         "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
@@ -21,10 +27,9 @@
     --color-primary: #ffe292;
     --color-secondary: #0f1522;
 
-    --animate-carousel: slide 10s linear infinite;
     --animate-fade-in: fade-in 0.2s ease-in-out;
     --animate-pop: pop 0.45s ease-out;
-    --animate-heartbeat: heartbeat 0.8s ease-out;
+    --animate-heartbeat: heartbeat 0.5s ease-out;
 
     --ease-in-cubic: cubic-bezier(0.18, 0.89, 0.23, 1);
     --ease-in-jerk: cubic-bezier(0.14, -0.53, 0, 1);
@@ -41,15 +46,6 @@
     --content-container-lg: calc(var(--content-article-lg) + var(--content-toc-lg));
     --content-container-xl: calc(var(--content-article-xl) + var(--content-toc-xl));
     --content-container-2xl: calc(var(--content-article-2xl) + var(--content-toc-xl));
-
-    @keyframes slide {
-        from {
-            transform: translateX(-20%);
-        }
-        to {
-            transform: translateX(calc(-120% - 1.5rem));
-        }
-    }
 
     @keyframes fade-in {
         from {
@@ -76,28 +72,19 @@
         }
     }
 
-    /* two quick beats, then a damped spring back to rest */
+    /* one beat, then a damped settle back to rest */
     @keyframes heartbeat {
         0% {
             transform: scale(1);
         }
-        12% {
+        25% {
             transform: scale(1.35);
         }
-        24% {
-            transform: scale(0.95);
+        55% {
+            transform: scale(0.92);
         }
-        36% {
-            transform: scale(1.3);
-        }
-        52% {
-            transform: scale(0.88);
-        }
-        68% {
-            transform: scale(1.08);
-        }
-        84% {
-            transform: scale(0.97);
+        80% {
+            transform: scale(1.04);
         }
         100% {
             transform: scale(1);
@@ -134,6 +121,15 @@
     @font-face {
         src: url("/fonts/JetBrainsMono.ttf") format("truetype");
         font-family: "JetBrains Mono";
+        font-style: normal;
+        font-display: swap;
+    }
+
+    /* Geist Serif by Vercel, SIL Open Font License 1.1 (see /fonts/GeistSerif-OFL.txt) */
+    @font-face {
+        src: url("/fonts/GeistSerif-Regular.woff2") format("woff2");
+        font-family: "Geist Serif";
+        font-weight: 400;
         font-style: normal;
         font-display: swap;
     }
@@ -218,16 +214,168 @@
     ::file-selector-button {
         border-color: var(--color-gray-200, currentColor);
     }
+
+    /* shadcn/ui components tag every part with data-slot: scope their border colour to them so the
+       rest of the site keeps its own borders */
+    [data-slot] {
+        border-color: var(--border);
+    }
 }
 
 @utility container {
     @apply min-w-full min-h-screen -mt-20 pb-20 grid grid-cols-container px-8 sm:px-24 overflow-x-hidden;
 }
 
+/* the navbar's grid: content centred in a column whose width steps up per breakpoint (the
+   --content-container-* tokens). Children go in md:col-start-2. Shared so other rows can line up
+   with the navbar's content edges. */
+@utility content-grid {
+    @apply grid grid-cols-1 px-8 sm:px-20 md:px-0 md:grid-cols-[1fr_var(--content-container-md)_1fr] lg:grid-cols-[1fr_var(--content-container-lg)_1fr] xl:grid-cols-[1fr_var(--content-container-xl)_1fr] 2xl:grid-cols-[1fr_var(--content-container-2xl)_1fr];
+}
+
 @utility grid-cols-container {
     @apply grid-cols-1 lg:grid-cols-[1fr_minmax(65ch,var(--container-4xl))_1fr] 2xl:grid-cols-[1fr_var(--container-5xl)_1fr] *:lg:col-start-2 auto-cols-min;
 }
 
+/*
+ * Dithered wipe (the accordion headings' hover/focus fill): a primary fill that sweeps in from the
+ * left and out to the right behind a 45° dithered edge (4×4 Bayer, 4px cells): at every row the
+ * edge ramps from solid to empty over 48 cells (192px), each row's ramp one cell left of the row
+ * above, so the edge leans like "/". The band image is 352×160px (taller than any heading, top
+ * aligned, not repeated) and also carries the solid/empty parts of the slant.
+ * The fill's width animates rather than its scale, so the cells stay square; it overshoots by the
+ * band's width so no dither is left at the far end (the host clips it: overflow-hidden). The host
+ * needs position: relative and isolation. Bands are generated from the Bayer matrix: "in" ramps
+ * 1→0 left to right (the leading edge), "out" 0→1 (the trailing edge).
+ */
+@utility dither-wipe {
+    --wipe-band: 352px;
+
+    &::before {
+        content: "";
+        position: absolute;
+        inset-block: 0;
+        left: auto;
+        right: 0;
+        z-index: -10;
+        width: 0;
+        background: var(--color-primary);
+        /* leaving: the trailing (left) edge dithers out as the fill retreats to the right */
+        mask-image:
+            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='352' height='160' shape-rendering='crispEdges'%3E%3Cpath d='M176 0h4v4h-4zM192 0h4v4h-4zM200 0h4v4h-4zM208 0h4v4h-4zM216 0h4v4h-4zM224 0h4v4h-4zM232 0h4v4h-4zM240 0h4v4h-4zM248 0h4v4h-4zM256 0h12v4h-12zM272 0h80v4h-80zM212 4h4v4h-4zM228 4h4v4h-4zM236 4h4v4h-4zM244 4h4v4h-4zM252 4h4v4h-4zM260 4h4v4h-4zM268 4h4v4h-4zM276 4h4v4h-4zM284 4h4v4h-4zM292 4h4v4h-4zM300 4h12v4h-12zM316 4h36v4h-36zM168 8h4v4h-4zM184 8h4v4h-4zM192 8h4v4h-4zM200 8h4v4h-4zM208 8h4v4h-4zM216 8h4v4h-4zM224 8h4v4h-4zM232 8h4v4h-4zM240 8h4v4h-4zM248 8h4v4h-4zM256 8h4v4h-4zM264 8h12v4h-12zM280 8h72v4h-72zM220 12h4v4h-4zM236 12h4v4h-4zM244 12h4v4h-4zM252 12h4v4h-4zM260 12h4v4h-4zM268 12h4v4h-4zM276 12h4v4h-4zM284 12h4v4h-4zM292 12h4v4h-4zM300 12h4v4h-4zM308 12h12v4h-12zM324 12h28v4h-28zM160 16h4v4h-4zM176 16h4v4h-4zM184 16h4v4h-4zM192 16h4v4h-4zM200 16h4v4h-4zM208 16h4v4h-4zM216 16h4v4h-4zM224 16h4v4h-4zM232 16h4v4h-4zM240 16h12v4h-12zM256 16h96v4h-96zM196 20h4v4h-4zM212 20h4v4h-4zM220 20h4v4h-4zM228 20h4v4h-4zM236 20h4v4h-4zM244 20h4v4h-4zM252 20h4v4h-4zM260 20h4v4h-4zM268 20h4v4h-4zM276 20h4v4h-4zM284 20h12v4h-12zM300 20h52v4h-52zM152 24h4v4h-4zM168 24h4v4h-4zM176 24h4v4h-4zM184 24h4v4h-4zM192 24h4v4h-4zM200 24h4v4h-4zM208 24h4v4h-4zM216 24h4v4h-4zM224 24h4v4h-4zM232 24h4v4h-4zM240 24h4v4h-4zM248 24h12v4h-12zM264 24h88v4h-88zM204 28h4v4h-4zM220 28h4v4h-4zM228 28h4v4h-4zM236 28h4v4h-4zM244 28h4v4h-4zM252 28h4v4h-4zM260 28h4v4h-4zM268 28h4v4h-4zM276 28h4v4h-4zM284 28h4v4h-4zM292 28h12v4h-12zM308 28h44v4h-44zM144 32h4v4h-4zM160 32h4v4h-4zM168 32h4v4h-4zM176 32h4v4h-4zM184 32h4v4h-4zM192 32h4v4h-4zM200 32h4v4h-4zM208 32h4v4h-4zM216 32h4v4h-4zM224 32h12v4h-12zM240 32h112v4h-112zM180 36h4v4h-4zM196 36h4v4h-4zM204 36h4v4h-4zM212 36h4v4h-4zM220 36h4v4h-4zM228 36h4v4h-4zM236 36h4v4h-4zM244 36h4v4h-4zM252 36h4v4h-4zM260 36h4v4h-4zM268 36h12v4h-12zM284 36h68v4h-68zM136 40h4v4h-4zM152 40h4v4h-4zM160 40h4v4h-4zM168 40h4v4h-4zM176 40h4v4h-4zM184 40h4v4h-4zM192 40h4v4h-4zM200 40h4v4h-4zM208 40h4v4h-4zM216 40h4v4h-4zM224 40h4v4h-4zM232 40h12v4h-12zM248 40h104v4h-104zM188 44h4v4h-4zM204 44h4v4h-4zM212 44h4v4h-4zM220 44h4v4h-4zM228 44h4v4h-4zM236 44h4v4h-4zM244 44h4v4h-4zM252 44h4v4h-4zM260 44h4v4h-4zM268 44h4v4h-4zM276 44h12v4h-12zM292 44h60v4h-60zM128 48h4v4h-4zM144 48h4v4h-4zM152 48h4v4h-4zM160 48h4v4h-4zM168 48h4v4h-4zM176 48h4v4h-4zM184 48h4v4h-4zM192 48h4v4h-4zM200 48h4v4h-4zM208 48h12v4h-12zM224 48h128v4h-128zM164 52h4v4h-4zM180 52h4v4h-4zM188 52h4v4h-4zM196 52h4v4h-4zM204 52h4v4h-4zM212 52h4v4h-4zM220 52h4v4h-4zM228 52h4v4h-4zM236 52h4v4h-4zM244 52h4v4h-4zM252 52h12v4h-12zM268 52h84v4h-84zM120 56h4v4h-4zM136 56h4v4h-4zM144 56h4v4h-4zM152 56h4v4h-4zM160 56h4v4h-4zM168 56h4v4h-4zM176 56h4v4h-4zM184 56h4v4h-4zM192 56h4v4h-4zM200 56h4v4h-4zM208 56h4v4h-4zM216 56h12v4h-12zM232 56h120v4h-120zM172 60h4v4h-4zM188 60h4v4h-4zM196 60h4v4h-4zM204 60h4v4h-4zM212 60h4v4h-4zM220 60h4v4h-4zM228 60h4v4h-4zM236 60h4v4h-4zM244 60h4v4h-4zM252 60h4v4h-4zM260 60h12v4h-12zM276 60h76v4h-76zM112 64h4v4h-4zM128 64h4v4h-4zM136 64h4v4h-4zM144 64h4v4h-4zM152 64h4v4h-4zM160 64h4v4h-4zM168 64h4v4h-4zM176 64h4v4h-4zM184 64h4v4h-4zM192 64h12v4h-12zM208 64h144v4h-144zM148 68h4v4h-4zM164 68h4v4h-4zM172 68h4v4h-4zM180 68h4v4h-4zM188 68h4v4h-4zM196 68h4v4h-4zM204 68h4v4h-4zM212 68h4v4h-4zM220 68h4v4h-4zM228 68h4v4h-4zM236 68h12v4h-12zM252 68h100v4h-100zM104 72h4v4h-4zM120 72h4v4h-4zM128 72h4v4h-4zM136 72h4v4h-4zM144 72h4v4h-4zM152 72h4v4h-4zM160 72h4v4h-4zM168 72h4v4h-4zM176 72h4v4h-4zM184 72h4v4h-4zM192 72h4v4h-4zM200 72h12v4h-12zM216 72h136v4h-136zM156 76h4v4h-4zM172 76h4v4h-4zM180 76h4v4h-4zM188 76h4v4h-4zM196 76h4v4h-4zM204 76h4v4h-4zM212 76h4v4h-4zM220 76h4v4h-4zM228 76h4v4h-4zM236 76h4v4h-4zM244 76h12v4h-12zM260 76h92v4h-92zM96 80h4v4h-4zM112 80h4v4h-4zM120 80h4v4h-4zM128 80h4v4h-4zM136 80h4v4h-4zM144 80h4v4h-4zM152 80h4v4h-4zM160 80h4v4h-4zM168 80h4v4h-4zM176 80h12v4h-12zM192 80h160v4h-160zM132 84h4v4h-4zM148 84h4v4h-4zM156 84h4v4h-4zM164 84h4v4h-4zM172 84h4v4h-4zM180 84h4v4h-4zM188 84h4v4h-4zM196 84h4v4h-4zM204 84h4v4h-4zM212 84h4v4h-4zM220 84h12v4h-12zM236 84h116v4h-116zM88 88h4v4h-4zM104 88h4v4h-4zM112 88h4v4h-4zM120 88h4v4h-4zM128 88h4v4h-4zM136 88h4v4h-4zM144 88h4v4h-4zM152 88h4v4h-4zM160 88h4v4h-4zM168 88h4v4h-4zM176 88h4v4h-4zM184 88h12v4h-12zM200 88h152v4h-152zM140 92h4v4h-4zM156 92h4v4h-4zM164 92h4v4h-4zM172 92h4v4h-4zM180 92h4v4h-4zM188 92h4v4h-4zM196 92h4v4h-4zM204 92h4v4h-4zM212 92h4v4h-4zM220 92h4v4h-4zM228 92h12v4h-12zM244 92h108v4h-108zM80 96h4v4h-4zM96 96h4v4h-4zM104 96h4v4h-4zM112 96h4v4h-4zM120 96h4v4h-4zM128 96h4v4h-4zM136 96h4v4h-4zM144 96h4v4h-4zM152 96h4v4h-4zM160 96h12v4h-12zM176 96h176v4h-176zM116 100h4v4h-4zM132 100h4v4h-4zM140 100h4v4h-4zM148 100h4v4h-4zM156 100h4v4h-4zM164 100h4v4h-4zM172 100h4v4h-4zM180 100h4v4h-4zM188 100h4v4h-4zM196 100h4v4h-4zM204 100h12v4h-12zM220 100h132v4h-132zM72 104h4v4h-4zM88 104h4v4h-4zM96 104h4v4h-4zM104 104h4v4h-4zM112 104h4v4h-4zM120 104h4v4h-4zM128 104h4v4h-4zM136 104h4v4h-4zM144 104h4v4h-4zM152 104h4v4h-4zM160 104h4v4h-4zM168 104h12v4h-12zM184 104h168v4h-168zM124 108h4v4h-4zM140 108h4v4h-4zM148 108h4v4h-4zM156 108h4v4h-4zM164 108h4v4h-4zM172 108h4v4h-4zM180 108h4v4h-4zM188 108h4v4h-4zM196 108h4v4h-4zM204 108h4v4h-4zM212 108h12v4h-12zM228 108h124v4h-124zM64 112h4v4h-4zM80 112h4v4h-4zM88 112h4v4h-4zM96 112h4v4h-4zM104 112h4v4h-4zM112 112h4v4h-4zM120 112h4v4h-4zM128 112h4v4h-4zM136 112h4v4h-4zM144 112h12v4h-12zM160 112h192v4h-192zM100 116h4v4h-4zM116 116h4v4h-4zM124 116h4v4h-4zM132 116h4v4h-4zM140 116h4v4h-4zM148 116h4v4h-4zM156 116h4v4h-4zM164 116h4v4h-4zM172 116h4v4h-4zM180 116h4v4h-4zM188 116h12v4h-12zM204 116h148v4h-148zM56 120h4v4h-4zM72 120h4v4h-4zM80 120h4v4h-4zM88 120h4v4h-4zM96 120h4v4h-4zM104 120h4v4h-4zM112 120h4v4h-4zM120 120h4v4h-4zM128 120h4v4h-4zM136 120h4v4h-4zM144 120h4v4h-4zM152 120h12v4h-12zM168 120h184v4h-184zM108 124h4v4h-4zM124 124h4v4h-4zM132 124h4v4h-4zM140 124h4v4h-4zM148 124h4v4h-4zM156 124h4v4h-4zM164 124h4v4h-4zM172 124h4v4h-4zM180 124h4v4h-4zM188 124h4v4h-4zM196 124h12v4h-12zM212 124h140v4h-140zM48 128h4v4h-4zM64 128h4v4h-4zM72 128h4v4h-4zM80 128h4v4h-4zM88 128h4v4h-4zM96 128h4v4h-4zM104 128h4v4h-4zM112 128h4v4h-4zM120 128h4v4h-4zM128 128h12v4h-12zM144 128h208v4h-208zM84 132h4v4h-4zM100 132h4v4h-4zM108 132h4v4h-4zM116 132h4v4h-4zM124 132h4v4h-4zM132 132h4v4h-4zM140 132h4v4h-4zM148 132h4v4h-4zM156 132h4v4h-4zM164 132h4v4h-4zM172 132h12v4h-12zM188 132h164v4h-164zM40 136h4v4h-4zM56 136h4v4h-4zM64 136h4v4h-4zM72 136h4v4h-4zM80 136h4v4h-4zM88 136h4v4h-4zM96 136h4v4h-4zM104 136h4v4h-4zM112 136h4v4h-4zM120 136h4v4h-4zM128 136h4v4h-4zM136 136h12v4h-12zM152 136h200v4h-200zM92 140h4v4h-4zM108 140h4v4h-4zM116 140h4v4h-4zM124 140h4v4h-4zM132 140h4v4h-4zM140 140h4v4h-4zM148 140h4v4h-4zM156 140h4v4h-4zM164 140h4v4h-4zM172 140h4v4h-4zM180 140h12v4h-12zM196 140h156v4h-156zM32 144h4v4h-4zM48 144h4v4h-4zM56 144h4v4h-4zM64 144h4v4h-4zM72 144h4v4h-4zM80 144h4v4h-4zM88 144h4v4h-4zM96 144h4v4h-4zM104 144h4v4h-4zM112 144h12v4h-12zM128 144h224v4h-224zM68 148h4v4h-4zM84 148h4v4h-4zM92 148h4v4h-4zM100 148h4v4h-4zM108 148h4v4h-4zM116 148h4v4h-4zM124 148h4v4h-4zM132 148h4v4h-4zM140 148h4v4h-4zM148 148h4v4h-4zM156 148h12v4h-12zM172 148h180v4h-180zM24 152h4v4h-4zM40 152h4v4h-4zM48 152h4v4h-4zM56 152h4v4h-4zM64 152h4v4h-4zM72 152h4v4h-4zM80 152h4v4h-4zM88 152h4v4h-4zM96 152h4v4h-4zM104 152h4v4h-4zM112 152h4v4h-4zM120 152h12v4h-12zM136 152h216v4h-216zM76 156h4v4h-4zM92 156h4v4h-4zM100 156h4v4h-4zM108 156h4v4h-4zM116 156h4v4h-4zM124 156h4v4h-4zM132 156h4v4h-4zM140 156h4v4h-4zM148 156h4v4h-4zM156 156h4v4h-4zM164 156h12v4h-12zM180 156h172v4h-172z'/%3E%3C/svg%3E"),
+            linear-gradient(#000, #000);
+        mask-position:
+            left top,
+            right top;
+        mask-size:
+            var(--wipe-band) 160px,
+            /* 2px into the band (solid there anyway), so no hairline seam shows at fractional widths */
+            calc(100% - var(--wipe-band) + 2px) 100%;
+        mask-repeat: no-repeat;
+        /* ease-out expo: covers most of the distance quickly, then a long, slow settle at the end */
+        transition: width 1500ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    &:hover::before,
+    &:focus-visible::before {
+        /* entering: grows from the left, its leading (right) edge dithered */
+        left: 0;
+        right: auto;
+        width: calc(100% + var(--wipe-band));
+        mask-image:
+            url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='352' height='160' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h220v4h-220zM224 0h12v4h-12zM240 0h4v4h-4zM248 0h4v4h-4zM256 0h4v4h-4zM264 0h4v4h-4zM272 0h4v4h-4zM280 0h4v4h-4zM288 0h4v4h-4zM296 0h4v4h-4zM304 0h4v4h-4zM312 0h4v4h-4zM320 0h4v4h-4zM336 0h4v4h-4zM0 4h168v4h-168zM172 4h12v4h-12zM188 4h4v4h-4zM196 4h4v4h-4zM204 4h4v4h-4zM212 4h4v4h-4zM220 4h4v4h-4zM228 4h4v4h-4zM236 4h4v4h-4zM244 4h4v4h-4zM252 4h4v4h-4zM260 4h4v4h-4zM276 4h4v4h-4zM0 8h212v4h-212zM216 8h12v4h-12zM232 8h4v4h-4zM240 8h4v4h-4zM248 8h4v4h-4zM256 8h4v4h-4zM264 8h4v4h-4zM272 8h4v4h-4zM280 8h4v4h-4zM288 8h4v4h-4zM296 8h4v4h-4zM312 8h4v4h-4zM0 12h160v4h-160zM164 12h12v4h-12zM180 12h4v4h-4zM188 12h4v4h-4zM196 12h4v4h-4zM204 12h4v4h-4zM212 12h4v4h-4zM220 12h4v4h-4zM228 12h4v4h-4zM236 12h4v4h-4zM252 12h4v4h-4zM0 16h204v4h-204zM208 16h12v4h-12zM224 16h4v4h-4zM232 16h4v4h-4zM240 16h4v4h-4zM248 16h4v4h-4zM256 16h4v4h-4zM264 16h4v4h-4zM272 16h4v4h-4zM280 16h4v4h-4zM288 16h4v4h-4zM296 16h4v4h-4zM304 16h4v4h-4zM320 16h4v4h-4zM0 20h152v4h-152zM156 20h12v4h-12zM172 20h4v4h-4zM180 20h4v4h-4zM188 20h4v4h-4zM196 20h4v4h-4zM204 20h4v4h-4zM212 20h4v4h-4zM220 20h4v4h-4zM228 20h4v4h-4zM236 20h4v4h-4zM244 20h4v4h-4zM260 20h4v4h-4zM0 24h196v4h-196zM200 24h12v4h-12zM216 24h4v4h-4zM224 24h4v4h-4zM232 24h4v4h-4zM240 24h4v4h-4zM248 24h4v4h-4zM256 24h4v4h-4zM264 24h4v4h-4zM272 24h4v4h-4zM280 24h4v4h-4zM296 24h4v4h-4zM0 28h144v4h-144zM148 28h12v4h-12zM164 28h4v4h-4zM172 28h4v4h-4zM180 28h4v4h-4zM188 28h4v4h-4zM196 28h4v4h-4zM204 28h4v4h-4zM212 28h4v4h-4zM220 28h4v4h-4zM236 28h4v4h-4zM0 32h188v4h-188zM192 32h12v4h-12zM208 32h4v4h-4zM216 32h4v4h-4zM224 32h4v4h-4zM232 32h4v4h-4zM240 32h4v4h-4zM248 32h4v4h-4zM256 32h4v4h-4zM264 32h4v4h-4zM272 32h4v4h-4zM280 32h4v4h-4zM288 32h4v4h-4zM304 32h4v4h-4zM0 36h136v4h-136zM140 36h12v4h-12zM156 36h4v4h-4zM164 36h4v4h-4zM172 36h4v4h-4zM180 36h4v4h-4zM188 36h4v4h-4zM196 36h4v4h-4zM204 36h4v4h-4zM212 36h4v4h-4zM220 36h4v4h-4zM228 36h4v4h-4zM244 36h4v4h-4zM0 40h180v4h-180zM184 40h12v4h-12zM200 40h4v4h-4zM208 40h4v4h-4zM216 40h4v4h-4zM224 40h4v4h-4zM232 40h4v4h-4zM240 40h4v4h-4zM248 40h4v4h-4zM256 40h4v4h-4zM264 40h4v4h-4zM280 40h4v4h-4zM0 44h128v4h-128zM132 44h12v4h-12zM148 44h4v4h-4zM156 44h4v4h-4zM164 44h4v4h-4zM172 44h4v4h-4zM180 44h4v4h-4zM188 44h4v4h-4zM196 44h4v4h-4zM204 44h4v4h-4zM220 44h4v4h-4zM0 48h172v4h-172zM176 48h12v4h-12zM192 48h4v4h-4zM200 48h4v4h-4zM208 48h4v4h-4zM216 48h4v4h-4zM224 48h4v4h-4zM232 48h4v4h-4zM240 48h4v4h-4zM248 48h4v4h-4zM256 48h4v4h-4zM264 48h4v4h-4zM272 48h4v4h-4zM288 48h4v4h-4zM0 52h120v4h-120zM124 52h12v4h-12zM140 52h4v4h-4zM148 52h4v4h-4zM156 52h4v4h-4zM164 52h4v4h-4zM172 52h4v4h-4zM180 52h4v4h-4zM188 52h4v4h-4zM196 52h4v4h-4zM204 52h4v4h-4zM212 52h4v4h-4zM228 52h4v4h-4zM0 56h164v4h-164zM168 56h12v4h-12zM184 56h4v4h-4zM192 56h4v4h-4zM200 56h4v4h-4zM208 56h4v4h-4zM216 56h4v4h-4zM224 56h4v4h-4zM232 56h4v4h-4zM240 56h4v4h-4zM248 56h4v4h-4zM264 56h4v4h-4zM0 60h112v4h-112zM116 60h12v4h-12zM132 60h4v4h-4zM140 60h4v4h-4zM148 60h4v4h-4zM156 60h4v4h-4zM164 60h4v4h-4zM172 60h4v4h-4zM180 60h4v4h-4zM188 60h4v4h-4zM204 60h4v4h-4zM0 64h156v4h-156zM160 64h12v4h-12zM176 64h4v4h-4zM184 64h4v4h-4zM192 64h4v4h-4zM200 64h4v4h-4zM208 64h4v4h-4zM216 64h4v4h-4zM224 64h4v4h-4zM232 64h4v4h-4zM240 64h4v4h-4zM248 64h4v4h-4zM256 64h4v4h-4zM272 64h4v4h-4zM0 68h104v4h-104zM108 68h12v4h-12zM124 68h4v4h-4zM132 68h4v4h-4zM140 68h4v4h-4zM148 68h4v4h-4zM156 68h4v4h-4zM164 68h4v4h-4zM172 68h4v4h-4zM180 68h4v4h-4zM188 68h4v4h-4zM196 68h4v4h-4zM212 68h4v4h-4zM0 72h148v4h-148zM152 72h12v4h-12zM168 72h4v4h-4zM176 72h4v4h-4zM184 72h4v4h-4zM192 72h4v4h-4zM200 72h4v4h-4zM208 72h4v4h-4zM216 72h4v4h-4zM224 72h4v4h-4zM232 72h4v4h-4zM248 72h4v4h-4zM0 76h96v4h-96zM100 76h12v4h-12zM116 76h4v4h-4zM124 76h4v4h-4zM132 76h4v4h-4zM140 76h4v4h-4zM148 76h4v4h-4zM156 76h4v4h-4zM164 76h4v4h-4zM172 76h4v4h-4zM188 76h4v4h-4zM0 80h140v4h-140zM144 80h12v4h-12zM160 80h4v4h-4zM168 80h4v4h-4zM176 80h4v4h-4zM184 80h4v4h-4zM192 80h4v4h-4zM200 80h4v4h-4zM208 80h4v4h-4zM216 80h4v4h-4zM224 80h4v4h-4zM232 80h4v4h-4zM240 80h4v4h-4zM256 80h4v4h-4zM0 84h88v4h-88zM92 84h12v4h-12zM108 84h4v4h-4zM116 84h4v4h-4zM124 84h4v4h-4zM132 84h4v4h-4zM140 84h4v4h-4zM148 84h4v4h-4zM156 84h4v4h-4zM164 84h4v4h-4zM172 84h4v4h-4zM180 84h4v4h-4zM196 84h4v4h-4zM0 88h132v4h-132zM136 88h12v4h-12zM152 88h4v4h-4zM160 88h4v4h-4zM168 88h4v4h-4zM176 88h4v4h-4zM184 88h4v4h-4zM192 88h4v4h-4zM200 88h4v4h-4zM208 88h4v4h-4zM216 88h4v4h-4zM232 88h4v4h-4zM0 92h80v4h-80zM84 92h12v4h-12zM100 92h4v4h-4zM108 92h4v4h-4zM116 92h4v4h-4zM124 92h4v4h-4zM132 92h4v4h-4zM140 92h4v4h-4zM148 92h4v4h-4zM156 92h4v4h-4zM172 92h4v4h-4zM0 96h124v4h-124zM128 96h12v4h-12zM144 96h4v4h-4zM152 96h4v4h-4zM160 96h4v4h-4zM168 96h4v4h-4zM176 96h4v4h-4zM184 96h4v4h-4zM192 96h4v4h-4zM200 96h4v4h-4zM208 96h4v4h-4zM216 96h4v4h-4zM224 96h4v4h-4zM240 96h4v4h-4zM0 100h72v4h-72zM76 100h12v4h-12zM92 100h4v4h-4zM100 100h4v4h-4zM108 100h4v4h-4zM116 100h4v4h-4zM124 100h4v4h-4zM132 100h4v4h-4zM140 100h4v4h-4zM148 100h4v4h-4zM156 100h4v4h-4zM164 100h4v4h-4zM180 100h4v4h-4zM0 104h116v4h-116zM120 104h12v4h-12zM136 104h4v4h-4zM144 104h4v4h-4zM152 104h4v4h-4zM160 104h4v4h-4zM168 104h4v4h-4zM176 104h4v4h-4zM184 104h4v4h-4zM192 104h4v4h-4zM200 104h4v4h-4zM216 104h4v4h-4zM0 108h64v4h-64zM68 108h12v4h-12zM84 108h4v4h-4zM92 108h4v4h-4zM100 108h4v4h-4zM108 108h4v4h-4zM116 108h4v4h-4zM124 108h4v4h-4zM132 108h4v4h-4zM140 108h4v4h-4zM156 108h4v4h-4zM0 112h108v4h-108zM112 112h12v4h-12zM128 112h4v4h-4zM136 112h4v4h-4zM144 112h4v4h-4zM152 112h4v4h-4zM160 112h4v4h-4zM168 112h4v4h-4zM176 112h4v4h-4zM184 112h4v4h-4zM192 112h4v4h-4zM200 112h4v4h-4zM208 112h4v4h-4zM224 112h4v4h-4zM0 116h56v4h-56zM60 116h12v4h-12zM76 116h4v4h-4zM84 116h4v4h-4zM92 116h4v4h-4zM100 116h4v4h-4zM108 116h4v4h-4zM116 116h4v4h-4zM124 116h4v4h-4zM132 116h4v4h-4zM140 116h4v4h-4zM148 116h4v4h-4zM164 116h4v4h-4zM0 120h100v4h-100zM104 120h12v4h-12zM120 120h4v4h-4zM128 120h4v4h-4zM136 120h4v4h-4zM144 120h4v4h-4zM152 120h4v4h-4zM160 120h4v4h-4zM168 120h4v4h-4zM176 120h4v4h-4zM184 120h4v4h-4zM200 120h4v4h-4zM0 124h48v4h-48zM52 124h12v4h-12zM68 124h4v4h-4zM76 124h4v4h-4zM84 124h4v4h-4zM92 124h4v4h-4zM100 124h4v4h-4zM108 124h4v4h-4zM116 124h4v4h-4zM124 124h4v4h-4zM140 124h4v4h-4zM0 128h92v4h-92zM96 128h12v4h-12zM112 128h4v4h-4zM120 128h4v4h-4zM128 128h4v4h-4zM136 128h4v4h-4zM144 128h4v4h-4zM152 128h4v4h-4zM160 128h4v4h-4zM168 128h4v4h-4zM176 128h4v4h-4zM184 128h4v4h-4zM192 128h4v4h-4zM208 128h4v4h-4zM0 132h40v4h-40zM44 132h12v4h-12zM60 132h4v4h-4zM68 132h4v4h-4zM76 132h4v4h-4zM84 132h4v4h-4zM92 132h4v4h-4zM100 132h4v4h-4zM108 132h4v4h-4zM116 132h4v4h-4zM124 132h4v4h-4zM132 132h4v4h-4zM148 132h4v4h-4zM0 136h84v4h-84zM88 136h12v4h-12zM104 136h4v4h-4zM112 136h4v4h-4zM120 136h4v4h-4zM128 136h4v4h-4zM136 136h4v4h-4zM144 136h4v4h-4zM152 136h4v4h-4zM160 136h4v4h-4zM168 136h4v4h-4zM184 136h4v4h-4zM0 140h32v4h-32zM36 140h12v4h-12zM52 140h4v4h-4zM60 140h4v4h-4zM68 140h4v4h-4zM76 140h4v4h-4zM84 140h4v4h-4zM92 140h4v4h-4zM100 140h4v4h-4zM108 140h4v4h-4zM124 140h4v4h-4zM0 144h76v4h-76zM80 144h12v4h-12zM96 144h4v4h-4zM104 144h4v4h-4zM112 144h4v4h-4zM120 144h4v4h-4zM128 144h4v4h-4zM136 144h4v4h-4zM144 144h4v4h-4zM152 144h4v4h-4zM160 144h4v4h-4zM168 144h4v4h-4zM176 144h4v4h-4zM192 144h4v4h-4zM0 148h24v4h-24zM28 148h12v4h-12zM44 148h4v4h-4zM52 148h4v4h-4zM60 148h4v4h-4zM68 148h4v4h-4zM76 148h4v4h-4zM84 148h4v4h-4zM92 148h4v4h-4zM100 148h4v4h-4zM108 148h4v4h-4zM116 148h4v4h-4zM132 148h4v4h-4zM0 152h68v4h-68zM72 152h12v4h-12zM88 152h4v4h-4zM96 152h4v4h-4zM104 152h4v4h-4zM112 152h4v4h-4zM120 152h4v4h-4zM128 152h4v4h-4zM136 152h4v4h-4zM144 152h4v4h-4zM152 152h4v4h-4zM168 152h4v4h-4zM0 156h16v4h-16zM20 156h12v4h-12zM36 156h4v4h-4zM44 156h4v4h-4zM52 156h4v4h-4zM60 156h4v4h-4zM68 156h4v4h-4zM76 156h4v4h-4zM84 156h4v4h-4zM92 156h4v4h-4zM108 156h4v4h-4z'/%3E%3C/svg%3E"),
+            linear-gradient(#000, #000);
+        mask-position:
+            right top,
+            left top;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        &::before {
+            transition: none;
+        }
+    }
+
+    /* the shader version (dither-wipe.ts) has attached and draws the fill instead */
+    &[data-shader-wipe]::before {
+        display: none;
+    }
+}
+
 @utility frame-border {
     @apply border-2 border-gray-600 ring-2 ring-slate-800 ring-offset-2 ring-offset-slate-900 bg-black/20 sm:rounded-md inset-shadow-sm inset-shadow-white/20;
+}
+
+@theme inline {
+    --font-heading: var(--font-body);
+    --font-sans: var(--font-body);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+}
+
+/*
+ * shadcn/ui tokens, set to match the site's dark palette (there is no light mode). --color-primary
+ * and --color-secondary are deliberately not mapped above: the site's own values (yellow accent,
+ * page background) stay in charge of bg-primary / bg-secondary.
+ */
+:root {
+    --background: #0f1522;
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.21 0.03 265);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.21 0.03 265);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: #ffe292;
+    --primary-foreground: #0f1522;
+    --secondary: oklch(0.28 0.03 265);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.28 0.03 265);
+    --muted-foreground: oklch(0.72 0.02 265);
+    --accent: oklch(0.28 0.03 265);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.21 0.03 265);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: #ffe292;
+    --sidebar-primary-foreground: #0f1522;
+    --sidebar-accent: oklch(0.28 0.03 265);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
 }
