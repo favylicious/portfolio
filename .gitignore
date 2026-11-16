@@ -27,3 +27,6 @@ pnpm-debug.log*
 .pnpm-store/
 
 .wrangler/
+
+# cf build output and local state
+.cloudflare/
